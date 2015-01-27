@@ -1,7 +1,7 @@
 {
-  "name": "fileManager",
-  "version": "0.0.0",
-  "homepage": "https://github.com/FNNDSC/fileManager",
+  "name": "fmjs",
+  "version": "0.1.0",
+  "homepage": "https://github.com/FNNDSC/fmjs",
   "authors": [
     "Jorge <jbernal0019@yahoo.es>"
   ],
@@ -10,7 +10,8 @@
     "html5",
     "cloud",
     "filesystem",
-    "GDrive"
+    "google",
+    "drive"
   ],
   "license": "MIT",
   "ignore": [

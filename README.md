@@ -1,2 +1,2 @@
 # fmjs
-File manager implements file reading and saving operations on diverse cloud filesystems.
+File manager that implements file reading and saving operations on diverse cloud filesystems.

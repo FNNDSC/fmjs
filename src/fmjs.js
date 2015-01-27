@@ -4,7 +4,7 @@
  * well as reading/writing the HTML5 sandboxed file system.
  *
  * FEATURES
- * - Read/write files from/to HTML5 sandbox file system
+ * - Read/write files from/to HTML5 sandboxed file system
  * - Upload/Download files from the cloud
  *
  * TECHNOLOGY
@@ -13,39 +13,39 @@
  */
 
 
-//Provide a namespace for the file manager module
-var fm = fm || {};
+// Provide a namespace for the file manager module
+var fmjs = fmjs || {};
 
   /**
    * Generic abstract method
    */
-  fm.abstractmethod = function() {
+  fmjs.abstractmethod = function() {
     throw new Error('abstract method');
   }
 
   /**
    * Abstract class defining a file manager's interface
    */
-  fm.AbstractFileManager = function() {
+  fmjs.AbstractFileManager = function() {
     throw new Error('Can not instantiate abstract classes');
   }
 
-  fm.AbstractFileManager.prototype.requestFileSystem = fm.abstractmethod;
+  fmjs.AbstractFileManager.prototype.requestFileSystem = fmjs.abstractmethod;
 
-  fm.AbstractFileManager.prototype.isFile = fm.abstractmethod;
+  fmjs.AbstractFileManager.prototype.isFile = fmjs.abstractmethod;
 
-  fm.AbstractFileManager.prototype.readFile = fm.abstractmethod;
+  fmjs.AbstractFileManager.prototype.readFile = fmjs.abstractmethod;
 
-  fm.AbstractFileManager.prototype.writeFile = fm.abstractmethod;
+  fmjs.AbstractFileManager.prototype.writeFile = fmjs.abstractmethod;
 
-  fm.AbstractFileManager.prototype.createPath = fm.abstractmethod;
+  fmjs.AbstractFileManager.prototype.createPath = fmjs.abstractmethod;
 
 
   /**
    * Concrete class implementing a file manager for the local FS.
    * Currently uses the HTML5's sandboxed FS API (only implemented in Chrome)
    */
-  fm.LocalFileManager = function() {
+  fmjs.LocalFileManager = function() {
 
     // local filesystem object
     this.fs = null;
@@ -53,17 +53,17 @@ var fm = fm || {};
   }
 
   /**
-   * fm.LocalFileManager class inherits from fm.AbstractFileManager class
+   * fmjs.LocalFileManager class inherits from fmjs.AbstractFileManager class
    */
-  fm.LocalFileManager.prototype = Object.create(fm.AbstractFileManager.prototype);
-  fm.LocalFileManager.prototype.constructor = fm.LocalFileManager;
+  fmjs.LocalFileManager.prototype = Object.create(fmjs.AbstractFileManager.prototype);
+  fmjs.LocalFileManager.prototype.constructor = fmjs.LocalFileManager;
 
   /**
    * Request sandboxed filesystem
    *
    * @param {Function} callback to be called when the API is ready.
    */
-  fm.LocalFileManager.prototype.requestFileSystem = function(callback) {
+  fmjs.LocalFileManager.prototype.requestFileSystem = function(callback) {
     var self = this;
 
     // The file system has been prefixed as of Google Chrome 12:
@@ -89,7 +89,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument is the directory entry or
    * null otherwise.
    */
-  fm.LocalFileManager.prototype.createPath = function(path, callback) {
+  fmjs.LocalFileManager.prototype.createPath = function(path, callback) {
     var self = this;
 
     function createPath() {
@@ -116,7 +116,7 @@ var fm = fm || {};
 
       }
 
-      folders = fm.path2array(path);
+      folders = fmjs.path2array(path);
       createFolder(self.fs, folders); // fs.root is a DirectoryEntry
 
     }
@@ -136,7 +136,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the File object if found or
    * null otherwise.
    */
-  fm.LocalFileManager.prototype.isFile = function(filePath, callback) {
+  fmjs.LocalFileManager.prototype.isFile = function(filePath, callback) {
     var self = this;
 
     function findFile() {
@@ -169,7 +169,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is an ArrayBuffer object containing
    * the file data if the file is successfuly read or null otherwise.
    */
-  fm.LocalFileManager.prototype.readFile = function(filePath, callback) {
+  fmjs.LocalFileManager.prototype.readFile = function(filePath, callback) {
     var self = this;
 
     function readFile() {
@@ -210,7 +210,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument is the File object or
    * null otherwise.
    */
-  fm.LocalFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+  fmjs.LocalFileManager.prototype.writeFile = function(filePath, fileData, callback) {
     var self = this;
 
     function checkPathAndWriteFile() {
@@ -274,7 +274,7 @@ var fm = fm || {};
    * Concrete class implementing a file manager for Google Drive.
    * Uses Google Drive's API
    */
-  fm.GDriveFileManager = function() {
+  fmjs.GDriveFileManager = function() {
     // Google's ID for this app
     this.CLIENT_ID = '358010366372-o8clkqjol0j533tp6jlnpjr2u2cdmks6.apps.googleusercontent.com';
     // Per-file access to files uploaded through the API
@@ -287,17 +287,17 @@ var fm = fm || {};
   }
 
   /**
-   * fm.GDriveFileManager class inherits from fm.AbstractFileManager class
+   * fmjs.GDriveFileManager class inherits from fmjs.AbstractFileManager class
    */
-  fm.GDriveFileManager.prototype = Object.create(fm.AbstractFileManager.prototype);
-  fm.GDriveFileManager.prototype.constructor = fm.GDriveFileManager;
+  fmjs.GDriveFileManager.prototype = Object.create(fmjs.AbstractFileManager.prototype);
+  fmjs.GDriveFileManager.prototype.constructor = fmjs.GDriveFileManager;
 
   /**
    * Load GDrive API
    *
    * @param {Function} callback to be called when the API is ready.
    */
-  fm.GDriveFileManager.prototype.requestFileSystem = function(callback) {
+  fmjs.GDriveFileManager.prototype.requestFileSystem = function(callback) {
     var self = this;
 
     if (!this.driveAPILoaded) {
@@ -311,7 +311,7 @@ var fm = fm || {};
   /**
    * Check if the current user has authorized the application.
    */
-  fm.GDriveFileManager.prototype.checkAuth = function() {
+  fmjs.GDriveFileManager.prototype.checkAuth = function() {
     gapi.auth.authorize(
       {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': true},
       this.handleAuthResult);
@@ -322,7 +322,7 @@ var fm = fm || {};
    *
    * @param {Object} authResult Authorization result.
    */
-   fm.GDriveFileManager.prototype.handleAuthResult = function(authResult) {
+   fmjs.GDriveFileManager.prototype.handleAuthResult = function(authResult) {
      var authButton = document.getElementById('authorizeButton');
 
      authButton.style.display = 'none';
@@ -347,7 +347,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument is the folder creation
    * response object or null otherwise.
    */
-  fm.GDriveFileManager.prototype.createPath = function(path, callback) {
+  fmjs.GDriveFileManager.prototype.createPath = function(path, callback) {
 
     function createPath() {
 
@@ -388,7 +388,7 @@ var fm = fm || {};
 
       }
 
-      folders = fm.path2array(path);
+      folders = fmjs.path2array(path);
       if (folders.length) {
         createFolder({'id': 'root'}, folders);
       } else if (callback) {
@@ -411,7 +411,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the file response object if
    * found or null otherwise.
    */
-  fm.GDriveFileManager.prototype.isFile = function(filePath, callback) {
+  fmjs.GDriveFileManager.prototype.isFile = function(filePath, callback) {
 
     function findFile() {
 
@@ -465,7 +465,7 @@ var fm = fm || {};
 
       }
 
-      entries = fm.path2array(filePath);
+      entries = fmjs.path2array(filePath);
       if (entries.length) {
         findEntry({'id': 'root'}, entries);
       } else if (callback) {
@@ -489,7 +489,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the file data if the file is
    * successfuly read or null otherwise.
    */
-  fm.GDriveFileManager.prototype.readFile = function(filePath, callback) {
+  fmjs.GDriveFileManager.prototype.readFile = function(filePath, callback) {
 
     this.isfile(filePath, function(fileResp) {
 
@@ -503,7 +503,7 @@ var fm = fm || {};
         // Response handlers.
         xhr.onload = function() {
           // convert from base 64 encoded string to ArrayBuffer
-          var fileData = fm.str2ab(atob(xhr.responseText));
+          var fileData = fmjs.str2ab(atob(xhr.responseText));
           callback(fileData);
         };
 
@@ -531,7 +531,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the file data if the file is
    * successfuly read or null otherwise.
    */
-  fm.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
+  fmjs.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
     var self = this;
 
     function downloadFile() {
@@ -572,7 +572,7 @@ var fm = fm || {};
    * @param {Array} ArrayBuffer object containing the file data.
    * @param {Function} optional callback whose argument is the file response object.
    */
-  fm.GDriveFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+  fmjs.GDriveFileManager.prototype.writeFile = function(filePath, fileData, callback) {
 
     // callback to insert new file.
     function writeFile(baseDirResp) {
@@ -589,7 +589,7 @@ var fm = fm || {};
         'parents': [{'id': baseDirResp.id}]
       };
 
-      var base64Data = btoa(fm.ab2str(fileData));
+      var base64Data = btoa(fmjs.ab2str(fileData));
       var multipartRequestBody =
           delimiter +
           'Content-Type: application/json\r\n\r\n' +
@@ -630,7 +630,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument is the shared file
    * response object if found or null otherwise.
    */
-  fm.GDriveFileManager.prototype.shareFile = function(filePath, userMail, callback) {
+  fmjs.GDriveFileManager.prototype.shareFile = function(filePath, userMail, callback) {
 
     this.isfile(filePath, function (fileResp) {
 
@@ -654,7 +654,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument an object with the user
    * info (properties: name, emailAddress).
    */
-  fm.GDriveFileManager.prototype.getUserInfo = function(callback) {
+  fmjs.GDriveFileManager.prototype.getUserInfo = function(callback) {
     var self = this;
 
     if (this.userInfo) {
@@ -674,23 +674,23 @@ var fm = fm || {};
    * Concrete class implementing a file manager for Dropbox.
    * Uses Dropbox API
    */
-  fm.DropboxFileManager = function() {
+  fmjs.DropboxFileManager = function() {
 
 
   }
 
   /**
-   * fm.DropboxFileManager class inherits from fm.AbstractFileManager class
+   * fmjs.DropboxFileManager class inherits from fmjs.AbstractFileManager class
    */
-  fm.DropboxFileManager.prototype = Object.create(fm.AbstractFileManager.prototype);
-  fm.DropboxFileManager.prototype.constructor = fm.DropboxFileManager;
+  fmjs.DropboxFileManager.prototype = Object.create(fmjs.AbstractFileManager.prototype);
+  fmjs.DropboxFileManager.prototype.constructor = fmjs.DropboxFileManager;
 
   /**
    * Load Dropbox API
    *
    * @param {Function} callback to be called when the API is ready.
    */
-  fm.DropboxFileManager.prototype.requestFileSystem = function(callback) {
+  fmjs.DropboxFileManager.prototype.requestFileSystem = function(callback) {
 
   }
 
@@ -701,7 +701,7 @@ var fm = fm || {};
    * @param {Function} optional callback whose argument is the folder creation
    * response object or null otherwise.
    */
-  fm.DropboxFileManager.prototype.createPath = function(path, callback) {
+  fmjs.DropboxFileManager.prototype.createPath = function(path, callback) {
 
   }
 
@@ -712,7 +712,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the file response object if
    * found or null otherwise.
    */
-  fm.DropboxFileManager.prototype.isFile = function(filePath, callback) {
+  fmjs.DropboxFileManager.prototype.isFile = function(filePath, callback) {
 
   }
 
@@ -723,7 +723,7 @@ var fm = fm || {};
    * @param {Function} callback whose argument is the file data if the file is
    * successfuly read or null otherwise.
    */
-  fm.DropboxFileManager.prototype.readFile = function(filePath, callback) {
+  fmjs.DropboxFileManager.prototype.readFile = function(filePath, callback) {
 
   }
 
@@ -734,7 +734,7 @@ var fm = fm || {};
    * @param {Array} ArrayBuffer object containing the file data.
    * @param {Function} optional callback whose argument is the response object.
    */
-  fm.DropboxFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+  fmjs.DropboxFileManager.prototype.writeFile = function(filePath, fileData, callback) {
 
   }
 
@@ -743,7 +743,7 @@ var fm = fm || {};
    *
    * @param {Array} input ArrayBuffer.
    */
-  fm.ab2str = function(buf) {
+  fmjs.ab2str = function(buf) {
     return String.fromCharCode.apply(null, new Uint8Array(buf)); // 1 byte for each char
   }
 
@@ -752,7 +752,7 @@ var fm = fm || {};
    *
    * @param {String} input string.
    */
-  fm.str2ab = function(str) {
+  fmjs.str2ab = function(str) {
     var buf = new ArrayBuffer(str.length); // 1 byte for each char
     var bufView = new Uint8Array(buf);
 
@@ -767,7 +767,7 @@ var fm = fm || {};
    *
    * @param {String} input path.
    */
-  fm.path2array = function(path) {
+  fmjs.path2array = function(path) {
     entries = path.split('/');
     // Throw out './' or '/' and move on to prevent something like '/foo/.//bar'.
     if (entries[0] == '.' || entries[0] == '') {

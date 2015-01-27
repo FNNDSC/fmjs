@@ -10,16 +10,8 @@ module.exports = function(grunt) {
       '<%= pkg.homepage ? "* " + pkg.homepage + "\\n" : "" %>' +
       '* Copyright (c) <%= grunt.template.today("yyyy") %> <%= pkg.author.name %>;' +
       ' Licensed <%= _.pluck(pkg.licenses, "type").join(", ") %> */\n',
+    srcFiles: ['src/fmjs.js'],
     // Task configuration.
-    uglify: {
-      options: {
-        banner: '<%= banner %>'
-      },
-      dist: {
-        src: 'src/fileManager.js',
-        dest: 'dist/<%= pkg.name %>.min.js'
-      }
-    },
     jshint: {
       options: {
         curly: true,
@@ -36,7 +28,7 @@ module.exports = function(grunt) {
         globals: {}
       },
       source: {
-        files: ['src/fileManager.js']
+        src: '<%= srcFiles %>'
       },
       gruntfile: {
         src: 'Gruntfile.js'
@@ -46,10 +38,19 @@ module.exports = function(grunt) {
       }
     },
     jasmine: {
-      src: 'src/fileManager.js',
-      options: {      
+      src: '<%= jshint.source.src %>',
+      options: {
         specs: 'test/**/*_spec.js',
         helpers: 'test/helpers/*.js'
+      }
+    },
+    uglify: {
+      options: {
+        banner: '<%= banner %>'
+      },
+      dist: {
+        src: '<%= jshint.source.src %>',
+        dest: 'dist/<%= pkg.name %>.min.js'
       }
     },
     watch: {
@@ -62,7 +63,7 @@ module.exports = function(grunt) {
         tasks: ['jshint:gruntfile']
       },
       /*test: {
-        files: '<%= jshint.lib_test.src %>',
+        files: '<%= jshint.test.files %>',
         tasks: ['jshint:test', 'jasmine']
       }*/
     }
@@ -80,5 +81,5 @@ module.exports = function(grunt) {
   // Default task.
   // grunt.registerTask('default', ['jshint', 'jasmine', 'uglify']);
   grunt.registerTask('default', ['jshint', 'uglify']);
-  
+
 };

@@ -1,19 +1,20 @@
 {
-  "name": "fileManager",
-  "version": "0.0.0",
-  "description": "An HTML5 sandboxed and cloud filesystems file manager",
+  "name": "fmjs",
+  "version": "0.1.0",
+  "description": "HTML5 sandboxed and cloud filesystems file manager",
   "keywords": [
     "filesystem",
     "cloud",
     "html5",
-    "api"
+    "google",
+    "drive"
   ],
   "author": "Jorge Bernal Rusiel ",
-  "homepage": "https://github.com/FNNDSC/fileManager",
-  "licnense": "MIT",
+  "homepage": "https://github.com/FNNDSC/fmjs",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/FNNDSC/fileManager.git"
+    "url": "https://github.com/FNNDSC/fmjs.git"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
