@@ -25,7 +25,11 @@ module.exports = function(grunt) {
         unused: true,
         boss: true,
         eqnull: true,
-        globals: {}
+        globals: {
+          window: true, document: true, gapi: true, FileReader: true, BlobBuilder: true,
+          XMLHttpRequest: true, ArrayBuffer: true, Uint8Array: true, FileError: true,
+          atob: true, btoa: true
+        }
       },
       source: {
         src: '<%= srcFiles %>'
@@ -33,9 +37,9 @@ module.exports = function(grunt) {
       gruntfile: {
         src: 'Gruntfile.js'
       },
-      test: {
-        files: ['test/**/*.js']
-      }
+      //test: {
+      //  files: ['test/**/*.js']
+      //}
     },
     jasmine: {
       src: '<%= jshint.source.src %>',
@@ -78,8 +82,11 @@ module.exports = function(grunt) {
   // Test task.
   // grunt.registerTask('test', ['jshint', 'jasmine']);
   grunt.registerTask('test', ['jshint']);
+  // Build task.
+  // grunt.registerTask('build', ['jshint', 'jasmine', 'uglify']);
+  grunt.registerTask('build', ['jshint', 'uglify']);
   // Default task.
   // grunt.registerTask('default', ['jshint', 'jasmine', 'uglify']);
-  grunt.registerTask('default', ['jshint', 'uglify']);
+  grunt.registerTask('default', ['build']);
 
 };

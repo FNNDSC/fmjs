@@ -21,14 +21,14 @@ var fmjs = fmjs || {};
    */
   fmjs.abstractmethod = function() {
     throw new Error('abstract method');
-  }
+  };
 
   /**
    * Abstract class defining a file manager's interface
    */
   fmjs.AbstractFileManager = function() {
     throw new Error('Can not instantiate abstract classes');
-  }
+  };
 
   fmjs.AbstractFileManager.prototype.requestFileSystem = fmjs.abstractmethod;
 
@@ -50,7 +50,7 @@ var fmjs = fmjs || {};
     // local filesystem object
     this.fs = null;
 
-  }
+  };
 
   /**
    * fmjs.LocalFileManager class inherits from fmjs.AbstractFileManager class
@@ -71,16 +71,16 @@ var fmjs = fmjs || {};
     // Request 5GB
     /*window.webkitStorageInfo.requestQuota( PERSISTENT, 5*1024*1024*1024, function(grantedBytes) {
       window.requestFileSystem(PERSISTENT, grantedBytes, function(fs){self.fs = fs;}, self.fsErrorHandler);
-    }, function(e) {
-      console.log('Error', e);} ); */
+    }, function(err) {
+      window.console.log('Error', err);} ); */
     if (window.requestFileSystem) {
       window.requestFileSystem(window.TEMPORARY, 5*1024*1024*1024, function(fs){
         self.fs = fs;
         callback();
-      }, function(e) {throw new Error('Could not grant filesystem. Error code: ' + e.code)});
+      }, function(err) {throw new Error('Could not grant filesystem. Error code: ' + err.code);});
     }
 
-  }
+  };
 
   /**
    * Create a new directory path in the sandboxed FS
@@ -96,8 +96,8 @@ var fmjs = fmjs || {};
 
       function createFolder(rootDirEntry, folders) {
 
-        function errorHandler(e) {
-          console.log('Could not create path. Error code: ' + e.code);
+        function errorHandler(err) {
+          window.console.log('Could not create path. Error code: ' + err.code);
           if (callback) {
             callback(null);
           }
@@ -116,7 +116,7 @@ var fmjs = fmjs || {};
 
       }
 
-      folders = fmjs.path2array(path);
+      var folders = fmjs.path2array(path);
       createFolder(self.fs, folders); // fs.root is a DirectoryEntry
 
     }
@@ -127,7 +127,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(createPath);
     }
 
-  }
+  };
 
   /**
    * Determine whether a file exists in the sandboxed FS
@@ -141,8 +141,8 @@ var fmjs = fmjs || {};
 
     function findFile() {
 
-      function errorHandler(e) {
-        console.log('File not found. Error code: ' + e.code);
+      function errorHandler(err) {
+        window.console.log('File not found. Error code: ' + err.code);
         callback(null);
       }
 
@@ -160,7 +160,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(findFile);
     }
 
-  }
+  };
 
   /**
    * Read a file from the sandboxed FS
@@ -174,8 +174,8 @@ var fmjs = fmjs || {};
 
     function readFile() {
 
-      function errorHandler(e) {
-        console.log('Could not read file. Error code: ' + e.code);
+      function errorHandler(err) {
+        window.console.log('Could not read file. Error code: ' + err.code);
         callback(null);
       }
 
@@ -184,9 +184,9 @@ var fmjs = fmjs || {};
         fileEntry.file(function(fileObj) {
           var reader = new FileReader();
 
-          reader.onload = function(ev) {
+          reader.onload = function() {
             callback(this.result);
-          }
+          };
 
           reader.readAsArrayBuffer(fileObj);
         }, errorHandler);
@@ -200,7 +200,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(readFile);
     }
 
-  }
+  };
 
   /**
    * Write a file to the sandboxed FS
@@ -215,8 +215,8 @@ var fmjs = fmjs || {};
 
     function checkPathAndWriteFile() {
 
-      function errorHandler(e) {
-        console.log('Could not write file. Error code: ' + e.code);
+      function errorHandler(err) {
+        window.console.log('Could not write file. Error code: ' + err.code);
         if (callback) {
           callback(null);
         }
@@ -227,37 +227,37 @@ var fmjs = fmjs || {};
           // Create a FileWriter object for our FileEntry (filePath).
           fileEntry.createWriter(function(fileWriter) {
 
-            fileWriter.onwrite = function(e) {
+            fileWriter.onwrite = function() {
               if (callback) {
                 // Get a File object representing the file,
                 fileEntry.file(function(fileObj) {
                   callback(fileObj);
                 }, errorHandler);
               }
-            }
+            };
 
-            fileWriter.onerror = function(e) {
-              console.log('Could not write file. Error code: ' + e.toString());
+            fileWriter.onerror = function(err) {
+              window.console.log('Could not write file. Error code: ' + err.toString());
               if (callback) {
                 callback(null);
               }
-            }
+            };
 
             var bBuilder = new BlobBuilder();
             bBuilder.append(fileData);
             var dataBlob = bBuilder.getBlob();
-            fileWriter.write(blob);
+            fileWriter.write(dataBlob);
 
           }, errorHandler);
         }, errorHandler);
       }
 
       var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
-      self.fs.getDirectory(basedir, {create: false}, function(dirEntry) {
+      self.fs.getDirectory(basedir, {create: false}, function() {
         writeFile();
-      }, function (e) {if (e.code === FileError.NOT_FOUND_ERR) {
+      }, function (err) {if (err.code === FileError.NOT_FOUND_ERR) {
         self.createPath(basedir, writeFile);} else {
-          errorHandler(e);
+          errorHandler(err);
         }} );
     }
 
@@ -267,24 +267,24 @@ var fmjs = fmjs || {};
       this.requestFileSystem(checkPathAndWriteFile);
     }
 
-  }
+  };
 
 
   /**
    * Concrete class implementing a file manager for Google Drive.
    * Uses Google Drive's API
    */
-  fmjs.GDriveFileManager = function() {
+  fmjs.GDriveFileManager = function(appInfo) {
     // Google's ID for this app
-    this.CLIENT_ID = '358010366372-o8clkqjol0j533tp6jlnpjr2u2cdmks6.apps.googleusercontent.com';
-    // Per-file access to files uploaded through the API
-    this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    this.CLIENT_ID = appInfo.CLIENT_ID;
+    // Permissions to access files uploaded through the API
+    this.SCOPES = appInfo.SCOPES;
     // Has Google Drive API been loaded?
     this.driveAPILoaded = false;
     // Current user information (name, email)
     this.userInfo = null;
 
-  }
+  };
 
   /**
    * fmjs.GDriveFileManager class inherits from fmjs.AbstractFileManager class
@@ -304,9 +304,9 @@ var fmjs = fmjs || {};
       gapi.client.load('drive', 'v2', function() {
         self.driveAPILoaded = true;
         callback();
-    });
-
-  }
+      });
+    }
+  };
 
   /**
    * Check if the current user has authorized the application.
@@ -315,7 +315,7 @@ var fmjs = fmjs || {};
     gapi.auth.authorize(
       {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': true},
       this.handleAuthResult);
-  }
+  };
 
   /**
    * Called when authorization server replies.
@@ -323,6 +323,7 @@ var fmjs = fmjs || {};
    * @param {Object} authResult Authorization result.
    */
    fmjs.GDriveFileManager.prototype.handleAuthResult = function(authResult) {
+     var self = this;
      var authButton = document.getElementById('authorizeButton');
 
      authButton.style.display = 'none';
@@ -333,12 +334,12 @@ var fmjs = fmjs || {};
        authButton.style.display = 'block';
        authButton.onclick = function() {
          gapi.auth.authorize(
-           {'client_id': CLIENT_ID, 'scope': SCOPES, 'immediate': false},
+           {'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': false},
            this.handleAuthResult);
        };
      }
 
-   }
+   };
 
   /**
    * Create a new directory path in the GDrive cloud
@@ -360,7 +361,7 @@ var fmjs = fmjs || {};
 
         findRequest.execute(function(findResp) {
           // if folder not found then create it
-          if (findResp.items.length==0) {
+          if (findResp.items.length===0) {
             var request = gapi.client.drive.files.insert({
               'resource': {'title': folders[0], 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': rootResp.id}]}
             });
@@ -388,7 +389,7 @@ var fmjs = fmjs || {};
 
       }
 
-      folders = fmjs.path2array(path);
+      var folders = fmjs.path2array(path);
       if (folders.length) {
         createFolder({'id': 'root'}, folders);
       } else if (callback) {
@@ -402,7 +403,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(createPath);
     }
 
-  }
+  };
 
   /**
    * Determine whether a file exists in the GDrive cloud
@@ -420,7 +421,7 @@ var fmjs = fmjs || {};
 
         // list entry with name entry[0] if it exists. The search request depends
         // on whether we are at the filename entry or at an ancestor folder
-        if (entries.length == 1) {
+        if (entries.length===1) {
           findRequest = gapi.client.drive.children.list({
             'folderId': rootResp.id,
             'q': "mimeType!='application/vnd.google-apps.folder' and title='" + entries[0] + "'"
@@ -434,9 +435,9 @@ var fmjs = fmjs || {};
 
         findRequest.execute(function(findResp) {
 
-          if (findResp.items.length==0) {
+          if (findResp.items.length===0) {
 
-            console.log('File ' + filePath + ' not found!');
+            window.console.log('File ' + filePath + ' not found!');
             if (callback) {
               callback(null);
             }
@@ -465,7 +466,7 @@ var fmjs = fmjs || {};
 
       }
 
-      entries = fmjs.path2array(filePath);
+      var entries = fmjs.path2array(filePath);
       if (entries.length) {
         findEntry({'id': 'root'}, entries);
       } else if (callback) {
@@ -480,7 +481,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(findFile);
     }
 
-  }
+  };
 
   /**
    * Read a file from the GDrive cloud
@@ -508,7 +509,7 @@ var fmjs = fmjs || {};
         };
 
         xhr.onerror = function() {
-            console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+            window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
             callback(null);
         };
 
@@ -520,7 +521,7 @@ var fmjs = fmjs || {};
 
     });
 
-  }
+  };
 
   /**
    * Given a file id read the file from the GDrive cloud if authorized. Can read
@@ -548,7 +549,7 @@ var fmjs = fmjs || {};
           var delRequest = gapi.client.drive.files.delete({
             'fileId': copyResp.id
           });
-          delRequest.execute(function(delResp) { console.log(delResp);});
+          delRequest.execute(function(delResp) { window.console.log(delResp);});
 
           callback(dataResp);
         });
@@ -563,7 +564,7 @@ var fmjs = fmjs || {};
       this.requestFileSystem(downloadFile);
     }
 
-  }
+  };
 
   /**
    * Write a file to GDrive
@@ -577,12 +578,12 @@ var fmjs = fmjs || {};
     // callback to insert new file.
     function writeFile(baseDirResp) {
 
-      const boundary = '-------314159265358979323846';
-      const delimiter = "\r\n--" + boundary + "\r\n";
-      const close_delim = "\r\n--" + boundary + "--";
+      var boundary = '-------314159265358979323846';
+      var delimiter = "\r\n--" + boundary + "\r\n";
+      var close_delim = "\r\n--" + boundary + "--";
 
       var contentType = fileData.type || 'application/octet-stream';
-      var name = fileData.name || url.substring(url.lastIndexOf('/') + 1);
+      var name = fileData.name || filePath.substring(filePath.lastIndexOf('/') + 1);
       var metadata = {
         'title': name,
         'mimeType': contentType,
@@ -611,7 +612,7 @@ var fmjs = fmjs || {};
             'body': multipartRequestBody});
       if (!callback) {
         callback = function(fileResp) {
-          console.log(fileResp)
+          window.console.log(fileResp);
         };
       }
       request.execute(callback);
@@ -620,7 +621,7 @@ var fmjs = fmjs || {};
 
     var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
     this.createPath(basedir, writeFile);
-  }
+  };
 
   /**
    * Share a file in current users's GDrive with another GDrive user identified
@@ -646,7 +647,7 @@ var fmjs = fmjs || {};
 
     });
 
-  }
+  };
 
   /**
    * Get information about current GDrive user.
@@ -668,31 +669,32 @@ var fmjs = fmjs || {};
       });
     }
 
-  }
+  };
+
 
   /**
    * Concrete class implementing a file manager for Dropbox.
    * Uses Dropbox API
    */
-  fmjs.DropboxFileManager = function() {
+  //fmjs.DropboxFileManager = function() {
 
 
-  }
+  //};
 
   /**
    * fmjs.DropboxFileManager class inherits from fmjs.AbstractFileManager class
    */
-  fmjs.DropboxFileManager.prototype = Object.create(fmjs.AbstractFileManager.prototype);
-  fmjs.DropboxFileManager.prototype.constructor = fmjs.DropboxFileManager;
+  //fmjs.DropboxFileManager.prototype = Object.create(fmjs.AbstractFileManager.prototype);
+  //fmjs.DropboxFileManager.prototype.constructor = fmjs.DropboxFileManager;
 
   /**
    * Load Dropbox API
    *
    * @param {Function} callback to be called when the API is ready.
    */
-  fmjs.DropboxFileManager.prototype.requestFileSystem = function(callback) {
+  //fmjs.DropboxFileManager.prototype.requestFileSystem = function(callback) {
 
-  }
+  //};
 
   /**
    * Create a new directory path in the Dropbox cloud
@@ -701,9 +703,9 @@ var fmjs = fmjs || {};
    * @param {Function} optional callback whose argument is the folder creation
    * response object or null otherwise.
    */
-  fmjs.DropboxFileManager.prototype.createPath = function(path, callback) {
+  //fmjs.DropboxFileManager.prototype.createPath = function(path, callback) {
 
-  }
+  //};
 
   /**
    * Determine whether a file exists in the Dropbox cloud
@@ -712,9 +714,9 @@ var fmjs = fmjs || {};
    * @param {Function} callback whose argument is the file response object if
    * found or null otherwise.
    */
-  fmjs.DropboxFileManager.prototype.isFile = function(filePath, callback) {
+  //fmjs.DropboxFileManager.prototype.isFile = function(filePath, callback) {
 
-  }
+  //};
 
   /**
    * Read a file from the Dropbox cloud
@@ -723,9 +725,9 @@ var fmjs = fmjs || {};
    * @param {Function} callback whose argument is the file data if the file is
    * successfuly read or null otherwise.
    */
-  fmjs.DropboxFileManager.prototype.readFile = function(filePath, callback) {
+  //fmjs.DropboxFileManager.prototype.readFile = function(filePath, callback) {
 
-  }
+  //};
 
   /**
    * Write a file to Dropbox
@@ -734,9 +736,10 @@ var fmjs = fmjs || {};
    * @param {Array} ArrayBuffer object containing the file data.
    * @param {Function} optional callback whose argument is the response object.
    */
-  fmjs.DropboxFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+  //fmjs.DropboxFileManager.prototype.writeFile = function(filePath, fileData, callback) {
 
-  }
+  //};
+
 
   /**
    * Convert ArrayBuffer to String
@@ -745,7 +748,7 @@ var fmjs = fmjs || {};
    */
   fmjs.ab2str = function(buf) {
     return String.fromCharCode.apply(null, new Uint8Array(buf)); // 1 byte for each char
-  }
+  };
 
   /**
    * Convert String to ArrayBuffer
@@ -753,14 +756,15 @@ var fmjs = fmjs || {};
    * @param {String} input string.
    */
   fmjs.str2ab = function(str) {
-    var buf = new ArrayBuffer(str.length); // 1 byte for each char
+    // 1 byte for each char
+    var buf = new ArrayBuffer(str.length);
     var bufView = new Uint8Array(buf);
 
-    for (var i=0, strLen=str.length; i &lt; strLen; i++) {
+    for (var i=0, strLen=str.length; i<strLen; i++) {
       bufView[i] = str.charCodeAt(i);
     }
     return buf;
-  }
+  };
 
   /**
    * Split a file or folder path into an array
@@ -768,10 +772,10 @@ var fmjs = fmjs || {};
    * @param {String} input path.
    */
   fmjs.path2array = function(path) {
-    entries = path.split('/');
+    var entries = path.split('/');
     // Throw out './' or '/' and move on to prevent something like '/foo/.//bar'.
-    if (entries[0] == '.' || entries[0] == '') {
+    if (entries[0] === '.' || entries[0] === '') {
       entries = entries.slice(1);
     }
     return entries;
-  }
+  };

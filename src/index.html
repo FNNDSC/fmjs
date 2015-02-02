@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+    <title>fmjs</title>
+  </head>
+
+  <body>
+
+    <!-- Load file manager -->
+    <script src="fmjs.js"></script>
+
+    <script type="text/javascript">
+      var CLIENT_ID = '358010366372-o8clkqjol0j533tp6jlnpjr2u2cdmks6.apps.googleusercontent.com';
+      var SCOPES = 'https://www.googleapis.com/auth/drive.file'; // Per-file access to files uploaded through the API
+      // var SCOPES = 'https://www.googleapis.com/auth/drive'; // full access to all user's files
+
+      /**
+      * Called when the client library is loaded to start the auth flow.
+      */
+      function handleClientLoad() {
+        window.setTimeout(checkAuth, 1);
+      }
+
+      /**
+      * Check if the current user has authorized the application.
+      */
+      function checkAuth() {
+        gapi.auth.authorize(
+          {'client_id': CLIENT_ID, 'scope': SCOPES, 'immediate': true},
+          handleAuthResult);
+        }
+
+        /**
+        * Called when authorization server replies.
+        *
+        * @param {Object} authResult Authorization result.
+        */
+        function handleAuthResult(authResult) {
+          var authButton = document.getElementById('authorizeButton');
+          var filePicker = document.getElementById('filePicker');
+          authButton.style.display = 'none';
+          filePicker.style.display = 'none';
+          if (authResult && !authResult.error) {
+            // Access token has been successfully retrieved, requests can be sent to the API.
+            filePicker.style.display = 'block';
+            filePicker.onchange = uploadFile;
+          } else {
+            // No access token could be retrieved, show the button to start the authorization flow.
+            authButton.style.display = 'block';
+            authButton.onclick = function() {
+              gapi.auth.authorize(
+                {'client_id': CLIENT_ID, 'scope': SCOPES, 'immediate': false},
+                handleAuthResult);
+              };
+            }
+          }
+
+          /**
+          * Start the file upload.
+          *
+          * @param {Object} evt Arguments from the file selector.
+          */
+          function uploadFile(evt) {
+            gapi.client.load('drive', 'v2', function() {
+              var file = evt.target.files[0];
+              insertFile(file);
+            });
+          }
+
+          /**
+          * Insert new file.
+          *
+          * @param {File} fileData File object to read data from.
+          * @param {Function} callback Function to call when the request is complete.
+          */
+          function insertFile(fileData, callback) {
+
+            /**
+            * Print information about the current user along with the Drive API
+            * settings.
+            */
+            function printAbout() {
+              var request = gapi.client.drive.about.get();
+              request.execute(function(resp) {
+                console.log('User: ' + resp.user.emailAddress);
+              });
+            }
+
+            printAbout();
+
+
+            /**
+            * Copy an existing file.
+            *
+            * @param {String} originFileId ID of the origin file to copy.
+            * @param {String} copyTitle Title of the copy.
+            */
+            function copyFile(originFileId, copyTitle) {
+              var body = {'title': copyTitle};
+              var request = gapi.client.drive.files.copy({
+                'fileId': originFileId,
+                'resource': body
+              });
+              request.execute(function(resp) {
+                console.log('Copy ID: ' + resp.id);
+              });
+            }
+
+
+            function downloadFile(file, callback) {
+
+              // Create the XHR object.
+              function createCORSRequest(method, url) {
+                var xhr = new XMLHttpRequest();
+                if ("withCredentials" in xhr) {
+                  // XHR for Chrome/Firefox/Opera/Safari.
+                  xhr.open(method, url);
+                } else if (typeof XDomainRequest != "undefined") {
+                  // XDomainRequest for IE.
+                  xhr = new XDomainRequest();
+                  xhr.open(method, url);
+                } else {
+                  // CORS not supported.
+                  xhr = null;
+                }
+                return xhr;
+              }
+
+              if (file.downloadUrl) {
+                var accessToken = gapi.auth.getToken().access_token;
+                /*var xhr = createCORSRequest('GET', file.downloadUrl);
+                if (!xhr) {
+                alert('CORS not supported');
+                return;
+              }*/
+              var xhr = new XMLHttpRequest();
+              xhr.open('GET', file.downloadUrl);
+              xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+
+              // Response handlers.
+              xhr.onload = function() {
+
+                //callback(xhr.responseText);
+                console.log(xhr.responseText);
+                // Permanently delete the file, skipping the trash.
+                var request = gapi.client.drive.files.delete({
+                  'fileId': file.id
+                });
+                request.execute(function(resp) { console.log(resp);});
+
+              };
+
+              xhr.onerror = function() {
+                alert('Woops, there was an error making the request.');
+              };
+
+              xhr.send();
+            } else {
+              //callback(null);
+            }
+          }
+
+
+          function getFile(fileID) {
+
+            var request = gapi.client.drive.files.copy({
+              'fileId': fileID,
+              'resource': {'title': 'temp.tmp'}
+            });
+            request.execute(function(resp) {
+              console.log('Copy ID: ' + resp.id);
+              downloadFile(resp);
+            });
+
+          }
+
+          //myfile = {};
+          //myfile.downloadUrl = "https://doc-0g-04-docs.googleusercontent.com/docs/securesc/b47ppodo0ec5h05g…359/0B8u7h0aKnydhTk1qLXF4VFlTRXM?h=15624460663270482288&e=download&gd=true";
+          //myfile.downloadUrl = "https://docs.google.com/a/babymri.org/uc?id=0B8u7h0aKnydhbkhFaWxWczJCWW8&export=download";
+
+          getFile('0B8u7h0aKnydhTk1qLXF4VFlTRXM');
+
+          //findFile({'id': 'root'}, ['lolo','lala','0001-2.25.95498848749513207305898896783191626476.dcm']);
+          //findFile({'id': 'root'}, ['lolo','lala','lala.txt']);
+
+          /*createDir({'id': 'root'}, ['lolo','lala','lele']);*/
+
+
+          /*    var body = {
+          'title': 'lolo',
+          'mimeType': 'application/vnd.google-apps.folder'
+        };
+        var request1 = gapi.client.drive.files.insert({
+        'resource': body
+      });
+      request1.execute(function(resp1) {
+      var request2 = gapi.client.drive.files.insert({
+      'resource': {'title': 'lala', 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id':resp1.id}]}
+      });
+      request2.execute(function(resp2) {
+      var request3 = gapi.client.drive.files.insert({
+      'resource': {'title': 'lele', 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id':resp1.id}]}
+      });
+      request3.execute(function(resp3) {
+      var initialRequest = gapi.client.drive.children.list({
+      'folderId': resp1.id,
+      'q': "mimeType='application/vnd.google-apps.folder' and title='lili'"
+      });
+      initialRequest.execute(function(resp) {
+      console.log(resp.items);
+      for (var i=0; i<resp.items.length; i++){
+      var request = gapi.client.drive.files.get({
+      'fileId': resp.items[i].id
+      });
+      request.execute(function(resp) {
+      console.log('Title: ' + resp.title);
+      console.log('MIME type: ' + resp.mimeType);
+      });
+      }
+      });
+      });
+      });
+      });
+
+
+
+      /*  const boundary = '-------314159265358979323846';
+      const delimiter = "\r\n--" + boundary + "\r\n";
+      const close_delim = "\r\n--" + boundary + "--";
+
+      var reader = new FileReader();
+      reader.readAsBinaryString(fileData);
+      //reader.readAsArrayBuffer(fileData);
+      reader.onload = function(e) {
+      var contentType = fileData.type || 'application/octet-stream';
+      var metadata = {
+      'title': fileData.name,
+      'mimeType': contentType
+      };
+
+      var base64Data = btoa(reader.result);
+      //var base64Data = btoa(String.fromCharCode(reader.result));
+      var multipartRequestBody =
+      delimiter +
+      'Content-Type: application/json\r\n\r\n' +
+      JSON.stringify(metadata) +
+      delimiter +
+      'Content-Type: ' + contentType + '\r\n' +
+      'Content-Transfer-Encoding: base64\r\n' +
+      '\r\n' +
+      base64Data +
+      close_delim;
+
+      var request = gapi.client.request({
+      'path': '/upload/drive/v2/files',
+      'method': 'POST',
+      'params': {'uploadType': 'multipart' /*resumable for more than 5MB files*/  /*},
+      'headers': {
+      'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+      },
+      'body': multipartRequestBody});
+      if (!callback) {
+      callback = function(file) {
+      console.log(file)
+      };
+      }
+      request.execute(callback);
+      }*/
+      }
+    </script>
+    <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+
+  </body>
+</html>
