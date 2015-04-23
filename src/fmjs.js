@@ -12,12 +12,17 @@
  * - Google drive API
  */
 
-
-// Provide a namespace for the file manager module
+/**
+ * Provide a namespace for the file manager module
+ *
+ * @namespace
+ */
 var fmjs = fmjs || {};
 
   /**
    * Generic abstract method
+   *
+   * @function
    */
   fmjs.abstractmethod = function() {
     throw new Error('abstract method');
@@ -25,6 +30,8 @@ var fmjs = fmjs || {};
 
   /**
    * Abstract class defining a file manager's interface
+   *
+   * @interface
    */
   fmjs.AbstractFileManager = function() {
     throw new Error('Can not instantiate abstract classes');
@@ -44,6 +51,9 @@ var fmjs = fmjs || {};
   /**
    * Concrete class implementing a file manager for the local FS.
    * Currently uses the HTML5's sandboxed FS API (only implemented in Chrome)
+   *
+   * @constructor
+   * @extends {fmjs.AbstractFileManager}
    */
   fmjs.LocalFileManager = function() {
 
@@ -273,12 +283,18 @@ var fmjs = fmjs || {};
   /**
    * Concrete class implementing a file manager for Google Drive.
    * Uses Google Drive's API
+   *
+   * @constructor
+   * @extends {fmjs.AbstractFileManager}
+   * @param {String} Client ID from the Google's developer console.
    */
-  fmjs.GDriveFileManager = function(appInfo) {
-    // Google's ID for this app
-    this.CLIENT_ID = appInfo.CLIENT_ID;
+  fmjs.GDriveFileManager = function(clientId) {
+    // Google's ID for the client app
+    this.CLIENT_ID = clientId;
     // Permissions to access files uploaded through the API
-    this.SCOPES = appInfo.SCOPES;
+    this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    // Has the client app been authorized?
+    this.autorized = false;
     // Has Google Drive API been loaded?
     this.driveAPILoaded = false;
     // Current user information (name, email)
@@ -293,52 +309,47 @@ var fmjs = fmjs || {};
   fmjs.GDriveFileManager.prototype.constructor = fmjs.GDriveFileManager;
 
   /**
-   * Load GDrive API
+   * Check if the current user has authorized the application and then load the GDrive Api.
    *
-   * @param {Function} callback to be called when the API is ready.
+   * @param {Boolean} whether or not to open a popup window.
+   * @param {Function} callback whose argument is a boolean true if success
    */
-  fmjs.GDriveFileManager.prototype.requestFileSystem = function(callback) {
+  fmjs.GDriveFileManager.prototype.requestFileSystem = function(immediate, callback) {
     var self = this;
 
-    if (!this.driveAPILoaded) {
-      gapi.client.load('drive', 'v2', function() {
-        self.driveAPILoaded = true;
-        callback();
+    if (!this.authorized) {
+      gapi.auth.authorize({'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': immediate},
+        function(authResult) {
+          if (authResult && !authResult.error) {
+            self.authorized = true;
+            self.loadApi(callback);
+          } else {
+            callback(false);
+          }
       });
+    } else{
+      self.loadApi(callback);
     }
   };
 
   /**
-   * Check if the current user has authorized the application.
-   */
-  fmjs.GDriveFileManager.prototype.checkAuth = function() {
-    gapi.auth.authorize(
-      {'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': true},
-      this.handleAuthResult);
-  };
-
-  /**
-   * Called when authorization server replies.
+   * Load GDrive API if the client app has been authorized
    *
-   * @param {Object} authResult Authorization result.
+   * @param {Function} callback whose argument is a boolean true if the api is successfuly loaded
    */
-   fmjs.GDriveFileManager.prototype.handleAuthResult = function(authResult) {
+   fmjs.GDriveFileManager.prototype.loadApi = function(callback) {
      var self = this;
-     var authButton = document.getElementById('authorizeButton');
 
-     authButton.style.display = 'none';
-     if (authResult && !authResult.error) {
-
+     if (this.authorized) {
+       if (!this.driveAPILoaded) {
+         gapi.client.load('drive', 'v2', function() {
+           self.driveAPILoaded = true;
+           callback(true);
+         });
+       }
      } else {
-       // No access token could be retrieved, show the button to start the authorization flow.
-       authButton.style.display = 'block';
-       authButton.onclick = function() {
-         gapi.auth.authorize(
-           {'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': false},
-           this.handleAuthResult);
-       };
+       console.error("The app has not been authorized");
      }
-
    };
 
   /**
@@ -350,57 +361,51 @@ var fmjs = fmjs || {};
    */
   fmjs.GDriveFileManager.prototype.createPath = function(path, callback) {
 
-    function createPath() {
-
-      function createFolder(rootResp, folders) {
-        // list folder with name folders[0] if it already exists
-        var findRequest = gapi.client.drive.children.list({
-          'folderId': rootResp.id,
-          'q': "mimeType='application/vnd.google-apps.folder' and title='" + folders[0] + "'"
-          });
-
-        findRequest.execute(function(findResp) {
-          // if folder not found then create it
-          if (findResp.items.length===0) {
-            var request = gapi.client.drive.files.insert({
-              'resource': {'title': folders[0], 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': rootResp.id}]}
-            });
-
-            request.execute(function(resp) {
-              folders = folders.slice(1);
-              if (folders.length) {
-                //recursively create subsequent folders if needed
-                createFolder(resp, folders);
-              } else if (callback) {
-                callback(resp);
-              }
-            });
-
-          } else {
-            folders = folders.slice(1);
-            if (folders.length) {
-              // recursively create subsequent folders if needed
-              createFolder(findResp.items[0], folders);
-            } else if (callback) {
-              callback(findResp.items[0]);
-            }
-          }
+    function createFolder(rootResp, folders) {
+      // list folder with name folders[0] if it already exists
+      var findRequest = gapi.client.drive.children.list({
+        'folderId': rootResp.id,
+        'q': "mimeType='application/vnd.google-apps.folder' and title='" + folders[0] + "'"
         });
 
-      }
+      findRequest.execute(function(findResp) {
+        // if folder not found then create it
+        if (findResp.items.length===0) {
+          var request = gapi.client.drive.files.insert({
+            'resource': {'title': folders[0], 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': rootResp.id}]}
+          });
 
+          request.execute(function(resp) {
+            folders = folders.slice(1);
+            if (folders.length) {
+              //recursively create subsequent folders if needed
+              createFolder(resp, folders);
+            } else if (callback) {
+              callback(resp);
+            }
+          });
+
+        } else {
+          folders = folders.slice(1);
+          if (folders.length) {
+            // recursively create subsequent folders if needed
+            createFolder(findResp.items[0], folders);
+          } else if (callback) {
+            callback(findResp.items[0]);
+          }
+        }
+      });
+    }
+
+    if (this.driveAPILoaded) {
       var folders = fmjs.path2array(path);
       if (folders.length) {
         createFolder({'id': 'root'}, folders);
       } else if (callback) {
         callback(null);
       }
-    }
-
-    if (this.driveAPILoaded) {
-      createPath();
     } else {
-      this.requestFileSystem(createPath);
+      console.error("GDrive Api not loaded");
     }
 
   };
@@ -414,71 +419,64 @@ var fmjs = fmjs || {};
    */
   fmjs.GDriveFileManager.prototype.isFile = function(filePath, callback) {
 
-    function findFile() {
+    function findEntry(rootResp, entries) {
+      var findRequest;
 
-      function findEntry(rootResp, entries) {
-        var findRequest;
-
-        // list entry with name entry[0] if it exists. The search request depends
-        // on whether we are at the filename entry or at an ancestor folder
-        if (entries.length===1) {
-          findRequest = gapi.client.drive.children.list({
-            'folderId': rootResp.id,
-            'q': "mimeType!='application/vnd.google-apps.folder' and title='" + entries[0] + "'"
-          });
-        } else {
-          findRequest = gapi.client.drive.children.list({
-            'folderId': rootResp.id,
-            'q': "mimeType='application/vnd.google-apps.folder' and title='" + entries[0] + "'"
-          });
-        }
-
-        findRequest.execute(function(findResp) {
-
-          if (findResp.items.length===0) {
-
-            window.console.log('File ' + filePath + ' not found!');
-            if (callback) {
-              callback(null);
-            }
-
-          } else {
-
-            // Entry was found! Check if there are more entries
-            entries = entries.slice(1);
-            if (entries.length) {
-              // Recursively move to subsequent entry
-              findEntry(findResp.items[0], entries);
-            } else if (callback) {
-              // No more entries, current entry is the file
-              // Request file response object (resource)
-              var request = gapi.client.drive.files.get({
-                'fileId': findResp.items[0].id
-              });
-              request.execute(function(resp) {
-                callback(resp);
-              });
-            }
-
-          }
-
+      // list entry with name entry[0] if it exists. The search request depends
+      // on whether we are at the filename entry or at an ancestor folder
+      if (entries.length===1) {
+        findRequest = gapi.client.drive.children.list({
+          'folderId': rootResp.id,
+          'q': "mimeType!='application/vnd.google-apps.folder' and title='" + entries[0] + "'"
         });
-
+      } else {
+        findRequest = gapi.client.drive.children.list({
+          'folderId': rootResp.id,
+          'q': "mimeType='application/vnd.google-apps.folder' and title='" + entries[0] + "'"
+        });
       }
 
+      findRequest.execute(function(findResp) {
+
+        if (findResp.items.length===0) {
+
+          console.error('File ' + filePath + ' not found!');
+          if (callback) {
+            callback(null);
+          }
+
+        } else {
+
+          // Entry was found! Check if there are more entries
+          entries = entries.slice(1);
+          if (entries.length) {
+            // Recursively move to subsequent entry
+            findEntry(findResp.items[0], entries);
+          } else if (callback) {
+            // No more entries, current entry is the file
+            // Request file response object (resource)
+            var request = gapi.client.drive.files.get({
+              'fileId': findResp.items[0].id
+            });
+            request.execute(function(resp) {
+              callback(resp);
+            });
+          }
+
+        }
+
+      });
+    }
+
+    if (this.driveAPILoaded) {
       var entries = fmjs.path2array(filePath);
       if (entries.length) {
         findEntry({'id': 'root'}, entries);
       } else if (callback) {
         callback(null);
       }
-
-    }
-
-    if (this.driveAPILoaded) {
-      findFile();
     } else {
-      this.requestFileSystem(findFile);
+      console.error("GDrive Api not loaded");
     }
 
   };
@@ -535,8 +533,7 @@ var fmjs = fmjs || {};
   fmjs.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
     var self = this;
 
-    function downloadFile() {
-
+    if (this.driveAPILoaded) {
       var copyRequest = gapi.client.drive.files.copy({
         'fileId': fileID,
         'resource': {'title': 'tempGDriveFile.tmp'}
@@ -555,13 +552,8 @@ var fmjs = fmjs || {};
         });
 
       });
-
-    }
-
-    if (this.driveAPILoaded) {
-      downloadFile();
     } else {
-      this.requestFileSystem(downloadFile);
+      console.error("GDrive Api not loaded");
     }
 
   };
@@ -652,7 +644,7 @@ var fmjs = fmjs || {};
   /**
    * Get information about current GDrive user.
    *
-   * @param {Function} optional callback whose argument an object with the user
+   * @param {Function} optional callback whose argument is an object with the user
    * info (properties: name, emailAddress).
    */
   fmjs.GDriveFileManager.prototype.getUserInfo = function(callback) {
@@ -675,6 +667,9 @@ var fmjs = fmjs || {};
   /**
    * Concrete class implementing a file manager for Dropbox.
    * Uses Dropbox API
+   *
+   * @constructor
+   * @extends {fmjs.AbstractFileManager}
    */
   //fmjs.DropboxFileManager = function() {
 
@@ -744,7 +739,9 @@ var fmjs = fmjs || {};
   /**
    * Convert ArrayBuffer to String
    *
+   * @function
    * @param {Array} input ArrayBuffer.
+   * @return {string} the resulting string.
    */
   fmjs.ab2str = function(buf) {
     return String.fromCharCode.apply(null, new Uint8Array(buf)); // 1 byte for each char
@@ -753,7 +750,9 @@ var fmjs = fmjs || {};
   /**
    * Convert String to ArrayBuffer
    *
+   * @function
    * @param {String} input string.
+   * @return {Array} the resulting array.
    */
   fmjs.str2ab = function(str) {
     // 1 byte for each char
@@ -769,7 +768,9 @@ var fmjs = fmjs || {};
   /**
    * Split a file or folder path into an array
    *
+   * @function
    * @param {String} input path.
+   * @return {Array} the resulting array.
    */
   fmjs.path2array = function(path) {
     var entries = path.split('/');

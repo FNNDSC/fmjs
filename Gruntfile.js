@@ -3,6 +3,7 @@ module.exports = function(grunt) {
 
   // Project configuration.
   grunt.initConfig({
+
     // Metadata.
     pkg: grunt.file.readJSON('package.json'),
     banner: '/*! <%= pkg.title || pkg.name %> - v<%= pkg.version %> - ' +
@@ -10,7 +11,11 @@ module.exports = function(grunt) {
       '<%= pkg.homepage ? "* " + pkg.homepage + "\\n" : "" %>' +
       '* Copyright (c) <%= grunt.template.today("yyyy") %> <%= pkg.author.name %>;' +
       ' Licensed <%= _.pluck(pkg.licenses, "type").join(", ") %> */\n',
-    srcFiles: ['src/fmjs.js'],
+
+    // Custome Paths
+    srcFiles: ['src/fmjs.js'], // source files (order here is important for dependencies)
+    testFiles: ['spec/*.spec.js'], // test files (jasmin' specs)
+
     // Task configuration.
     jshint: {
       options: {
@@ -26,9 +31,9 @@ module.exports = function(grunt) {
         boss: true,
         eqnull: true,
         globals: {
-          window: true, document: true, gapi: true, FileReader: true, BlobBuilder: true,
+          console: true, document: true, gapi: true, FileReader: true, BlobBuilder: true,
           XMLHttpRequest: true, ArrayBuffer: true, Uint8Array: true, FileError: true,
-          atob: true, btoa: true
+          atob: true, btoa: true, window: true
         }
       },
       source: {
@@ -41,6 +46,7 @@ module.exports = function(grunt) {
       //  files: ['test/**/*.js']
       //}
     },
+
     jasmine: {
       src: '<%= jshint.source.src %>',
       options: {
@@ -48,6 +54,7 @@ module.exports = function(grunt) {
         helpers: 'test/helpers/*.js'
       }
     },
+
     uglify: {
       options: {
         banner: '<%= banner %>'
@@ -57,6 +64,7 @@ module.exports = function(grunt) {
         dest: 'dist/<%= pkg.name %>.min.js'
       }
     },
+
     watch: {
       source: {
         files: '<%= jshint.source.src %>',
