@@ -293,6 +293,8 @@ var fmjs = fmjs || {};
     this.CLIENT_ID = clientId;
     // Permissions to access files uploaded through the API
     this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    // Has OAuth 2.0 client library been loaded?
+    this.clientOAuthAPILoaded = false;
     // Has the client app been authorized?
     this.autorized = false;
     // Has Google Drive API been loaded?
@@ -317,19 +319,28 @@ var fmjs = fmjs || {};
   fmjs.GDriveFileManager.prototype.requestFileSystem = function(immediate, callback) {
     var self = this;
 
-    if (!this.authorized) {
-      gapi.auth.authorize({'client_id': this.CLIENT_ID, 'scope': this.SCOPES, 'immediate': immediate},
-        function(authResult) {
-          if (authResult && !authResult.error) {
-            self.authorized = true;
-            self.loadApi(callback);
-          } else {
-            callback(false);
-          }
-      });
-    } else{
-      self.loadApi(callback);
+    function requestFS() {
+      if (!self.authorized) {
+        gapi.auth.authorize({'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': immediate},
+          function(authResult) {
+            if (authResult && !authResult.error) {
+              self.authorized = true;
+              self.loadGDriveApi(callback);
+            } else {
+              callback(false);
+            }
+        });
+      } else{
+        self.loadGDriveApi(callback);
+      }
     }
+
+    if (this.clientOAuthAPILoaded) {
+      requestFS();
+    } else {
+      gapi.load('auth:client', requestFS);
+    }
+
   };
 
   /**
@@ -337,7 +348,7 @@ var fmjs = fmjs || {};
    *
    * @param {Function} callback whose argument is a boolean true if the api is successfuly loaded
    */
-   fmjs.GDriveFileManager.prototype.loadApi = function(callback) {
+   fmjs.GDriveFileManager.prototype.loadGDriveApi = function(callback) {
      var self = this;
 
      if (this.authorized) {
