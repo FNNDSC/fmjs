@@ -320,18 +320,23 @@ var fmjs = fmjs || {};
     var self = this;
 
     function requestFS() {
-      if (!self.authorized) {
+
+      function callbackClosure() {
+        callback(true);
+      }
+
+      if (self.authorized) {
+        self.loadGDriveApi(callbackClosure);
+      } else{
         gapi.auth.authorize({'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': immediate},
           function(authResult) {
             if (authResult && !authResult.error) {
               self.authorized = true;
-              self.loadGDriveApi(callback);
+              self.loadGDriveApi(callbackClosure);
             } else {
               callback(false);
             }
         });
-      } else{
-        self.loadGDriveApi(callback);
       }
     }
 
@@ -346,16 +351,18 @@ var fmjs = fmjs || {};
   /**
    * Load GDrive API if the client app has been authorized
    *
-   * @param {Function} callback whose argument is a boolean true if the api is successfuly loaded
+   * @param {Function} callback to be called when the api is loaded
    */
    fmjs.GDriveFileManager.prototype.loadGDriveApi = function(callback) {
      var self = this;
 
      if (this.authorized) {
-       if (!this.driveAPILoaded) {
+       if (this.driveAPILoaded) {
+         callback();
+       } else {
          gapi.client.load('drive', 'v2', function() {
            self.driveAPILoaded = true;
-           callback(true);
+           callback();
          });
        }
      } else {
