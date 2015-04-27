@@ -658,6 +658,25 @@ var fmjs = fmjs || {};
   };
 
   /**
+   * Create a file in GDrive
+   *
+   * @param {String} file's path.
+   * @param {Object} object containing the file meta data (title, mimeType).
+   * @param {Function} optional callback whose argument is the file response object.
+   */
+  fmjs.GDriveFileManager.prototype.createFile = function(filePath, fileData, callback) {
+    var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
+
+    this.createPath(basedir, function() {
+      gapi.client.drive.files.insert({
+      'resource': {
+        mimeType: fileData.mimeType,
+        title: fileData.title
+      }
+    }).execute(callback);});
+  };
+
+  /**
    * Share a file in current users's GDrive with another GDrive user identified
    * by it's email address.
    *
