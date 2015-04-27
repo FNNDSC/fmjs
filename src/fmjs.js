@@ -319,41 +319,65 @@ var fmjs = fmjs || {};
   fmjs.GDriveFileManager.prototype.requestFileSystem = function(immediate, callback) {
     var self = this;
 
-    function requestFS() {
-
-      function callbackClosure() {
-        callback(true);
-      }
-
-      if (self.authorized) {
-        self.loadGDriveApi(callbackClosure);
-      } else{
-        gapi.auth.authorize({'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': immediate},
-          function(authResult) {
-            if (authResult && !authResult.error) {
-              self.authorized = true;
-              self.loadGDriveApi(callbackClosure);
-            } else {
-              callback(false);
-            }
-        });
-      }
+    function callbackClosure() {
+      callback(true);
     }
 
-    if (this.clientOAuthAPILoaded) {
-      requestFS();
-    } else {
-      gapi.load('auth:client', requestFS);
-    }
+    this.authorize(immediate, function(authorized) {
+      if (authorized) {
+        self.loadApi(callbackClosure);
+      } else {
+        callback(false);
+      }
+    });
 
   };
+
+  /**
+   * Check if the current user has authorized the application.
+   *
+   * @param {Boolean} whether or not to open a popup window.
+   * @param {Function} callback whose argument is a boolean true if success
+   */
+   fmjs.GDriveFileManager.prototype.authorize = function(immediate, callback) {
+     var self = this;
+
+     function authorize() {
+       gapi.auth.authorize({'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': immediate},
+         function(authResult) {
+           if (authResult && !authResult.error) {
+             // Access token has been successfully retrieved, requests can be sent to the API.
+             self.authorized = true;
+             callback(true);
+           } else {
+             // No access token could be retrieved,
+             callback(false);
+           }
+       });
+     }
+
+     if (this.authorized) {
+       callback(true);
+     } else{
+       if (this.clientOAuthAPILoaded) {
+         // OAuth client library has already been loaded, requests using it can be sent
+         authorize();
+       } else {
+         gapi.load('auth:client', function() {
+           self.clientOAuthAPILoaded = true;
+           authorize();
+          });
+       }
+     }
+
+   };
 
   /**
    * Load GDrive API if the client app has been authorized
    *
    * @param {Function} callback to be called when the api is loaded
    */
-   fmjs.GDriveFileManager.prototype.loadGDriveApi = function(callback) {
+   fmjs.GDriveFileManager.prototype.loadApi = function(callback) {
      var self = this;
 
      if (this.authorized) {
