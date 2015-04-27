@@ -603,11 +603,11 @@ var fmjs = fmjs || {};
   /**
    * Write a file to GDrive
    *
-   * @param {String} file's path.
+   * @param {String} file's base directory path.
    * @param {Array} ArrayBuffer object containing the file data.
    * @param {Function} optional callback whose argument is the file response object.
    */
-  fmjs.GDriveFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+  fmjs.GDriveFileManager.prototype.writeFile = function(basePath, fileData, callback) {
 
     // callback to insert new file.
     function writeFile(baseDirResp) {
@@ -617,7 +617,7 @@ var fmjs = fmjs || {};
       var close_delim = "\r\n--" + boundary + "--";
 
       var contentType = fileData.type || 'application/octet-stream';
-      var name = fileData.name || filePath.substring(filePath.lastIndexOf('/') + 1);
+      var name = fileData.name;
       var metadata = {
         'title': name,
         'mimeType': contentType,
@@ -653,21 +653,19 @@ var fmjs = fmjs || {};
 
     }
 
-    var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
-    this.createPath(basedir, writeFile);
+    this.createPath(basePath, writeFile);
   };
 
   /**
    * Create a file in GDrive
    *
-   * @param {String} file's path.
+   * @param {String} file's base directory path.
    * @param {Object} object containing the file meta data (title, mimeType).
    * @param {Function} optional callback whose argument is the file response object.
    */
-  fmjs.GDriveFileManager.prototype.createFile = function(filePath, fileData, callback) {
-    var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
+  fmjs.GDriveFileManager.prototype.createFile = function(basePath, fileData, callback) {
 
-    this.createPath(basedir, function() {
+    this.createPath(basePath, function() {
       gapi.client.drive.files.insert({
       'resource': {
         mimeType: fileData.mimeType,
