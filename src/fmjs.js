@@ -603,11 +603,11 @@ var fmjs = fmjs || {};
   /**
    * Write a file to GDrive
    *
-   * @param {String} file's base directory path.
+   * @param {String} file's path.
    * @param {Array} ArrayBuffer object containing the file data.
    * @param {Function} optional callback whose argument is the file response object.
    */
-  fmjs.GDriveFileManager.prototype.writeFile = function(basePath, fileData, callback) {
+  fmjs.GDriveFileManager.prototype.writeFile = function(filePath, fileData, callback) {
 
     // callback to insert new file.
     function writeFile(baseDirResp) {
@@ -617,7 +617,7 @@ var fmjs = fmjs || {};
       var close_delim = "\r\n--" + boundary + "--";
 
       var contentType = fileData.type || 'application/octet-stream';
-      var name = fileData.name;
+      var name = fileData.name || filePath.substring(filePath.lastIndexOf('/') + 1);
       var metadata = {
         'title': name,
         'mimeType': contentType,
@@ -653,23 +653,28 @@ var fmjs = fmjs || {};
 
     }
 
-    this.createPath(basePath, writeFile);
+    var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
+    this.createPath(basedir, writeFile);
   };
 
   /**
    * Create a file in GDrive
    *
-   * @param {String} file's base directory path.
-   * @param {Object} object containing the file meta data (title, mimeType).
+   * @param {String} file's path.
+   * @param {String} MIME type string.
    * @param {Function} optional callback whose argument is the file response object.
    */
-  fmjs.GDriveFileManager.prototype.createFile = function(basePath, fileData, callback) {
+  fmjs.GDriveFileManager.prototype.createFile = function(filePath, mimeType, callback) {
+    var idx = filePath.lastIndexOf('/');
+    var baseDir = filePath.substring(0, idx);
+    var name = filePath.substring(idx + 1);
 
-    this.createPath(basePath, function() {
+    this.createPath(baseDir, function(baseDirResp) {
       gapi.client.drive.files.insert({
       'resource': {
-        mimeType: fileData.mimeType,
-        title: fileData.title
+        mimeType: mimeType,
+        title: name,
+        'parents': [{'id': baseDirResp.id}]
       }
     }).execute(callback);});
   };
@@ -695,7 +700,6 @@ var fmjs = fmjs || {};
       } else if (callback) {
         callback(null);
       }
-
     });
 
   };
