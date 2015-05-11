@@ -687,6 +687,8 @@ define(function() {
      * by it's email address.
      *
      * @param {String} file's path.
+     * @param {String} user's email.
+     * @param {String} one of the strings: "owner", "reader" or "writer"
      * @param {Function} optional callback whose argument is the shared file
      * response object if found or null otherwise.
      */
@@ -712,6 +714,8 @@ define(function() {
      * by it's email address.
      *
      * @param {String} file's id.
+     * @param {String} user's email.
+     * @param {String} one of the strings: "owner", "reader" or "writer"
      * @param {Function} optional callback whose argument is the shared file
      * response object if found or null otherwise.
      */
@@ -726,6 +730,7 @@ define(function() {
           if (resp && callback){
             callback(resp);
           } else if (callback) {
+            console.error("File with id: " + fileID + " not found");
             callback(null);
           }
         });
