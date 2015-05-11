@@ -690,20 +690,48 @@ define(function() {
      * @param {Function} optional callback whose argument is the shared file
      * response object if found or null otherwise.
      */
-    fmjs.GDriveFileManager.prototype.shareFile = function(filePath, userMail, callback) {
+    fmjs.GDriveFileManager.prototype.shareFile = function(filePath, userMail, role, callback) {
 
       this.isfile(filePath, function (fileResp) {
 
         if (fileResp) {
           var request = gapi.client.drive.permissions.insert({
             'fileId': fileResp.id,
-            'resource': {'value': userMail, 'type': 'user', 'role': 'reader'}
+            'resource': {'value': userMail, 'type': 'user', 'role': role}
             });
           request.execute(function(resp) {if (callback) {callback(resp);}});
         } else if (callback) {
           callback(null);
         }
       });
+
+    };
+
+    /**
+     * Share a file in current users's GDrive with another GDrive user identified
+     * by it's email address.
+     *
+     * @param {String} file's id.
+     * @param {Function} optional callback whose argument is the shared file
+     * response object if found or null otherwise.
+     */
+    fmjs.GDriveFileManager.prototype.shareFileById = function(fileID, userMail, role, callback) {
+
+      if (this.driveAPILoaded) {
+        var request = gapi.client.drive.permissions.insert({
+          'fileId': fileID,
+          'resource': {'value': userMail, 'type': 'user', 'role': role}
+          });
+        request.execute(function(resp) {
+          if (resp && callback){
+            callback(resp);
+          } else if (callback) {
+            callback(null);
+          }
+        });
+      } else {
+        console.error("GDrive Api not loaded");
+      }
 
     };
 
