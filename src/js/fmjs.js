@@ -869,6 +869,24 @@ define(function() {
     };
 
     /**
+     * Make an Ajax request to get a Blob from a url.
+     *
+     * @function
+     * @param {String} a url
+     * @param {Function} callback whose argument is the Blob object
+     */
+     fmjs.urlToBlob = function(url, callback) {
+       var xhr = new XMLHttpRequest();
+
+       xhr.open("GET", url);
+       xhr.responseType = "blob";//force the HTTP response, response-type header to be blob
+       xhr.onload = function() {
+           callback(xhr.response);//xhr.response is now a blob object
+       };
+       xhr.send();
+    };
+
+    /**
      * Split a file or folder path into an array
      *
      * @function
