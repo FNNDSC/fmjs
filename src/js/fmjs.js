@@ -840,9 +840,15 @@ define(function() {
      * @param {Array} input ArrayBuffer.
      * @return {string} the resulting string.
      */
-    fmjs.ab2str = function(buf) {
-      return String.fromCharCode.apply(null, new Uint8Array(buf)); // 1 byte for each char
-    };
+     fmjs.ab2str = function(buf) {
+       var bytes = new Uint8Array(buf);
+       var str = String.fromCharCode(bytes[0]);
+
+       for (var i=1; i<bytes.byteLength; i++) {
+           str += String.fromCharCode(bytes[i]);
+       }
+       return str;
+     };
 
     /**
      * Convert String to ArrayBuffer
