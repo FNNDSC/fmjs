@@ -692,13 +692,22 @@ define(function() {
      * response object if found or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.shareFile = function(filePath, permissions, callback) {
+      var resource = {};
+
+      resource.type = permissions.type;
+      resource.role = permissions.role;
+      if (permissions.value) {
+        resource.value = permissions.value;
+      } else {
+        resource.id = permissions.id;
+      }
 
       this.isfile(filePath, function(fileResp) {
 
         if (fileResp) {
           var request = gapi.client.drive.permissions.insert({
             'fileId': fileResp.id,
-            'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
+            'resource': resource
             });
           request.execute(function(resp) {if (callback) {callback(resp);}});
         } else if (callback) {
@@ -718,11 +727,20 @@ define(function() {
      * response object if found or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.shareFileById = function(fileID, permissions, callback) {
+      var resource = {};
+
+      resource.type = permissions.type;
+      resource.role = permissions.role;
+      if (permissions.value) {
+        resource.value = permissions.value;
+      } else {
+        resource.id = permissions.id;
+      }
 
       if (this.driveAPILoaded) {
         var request = gapi.client.drive.permissions.insert({
           'fileId': fileID,
-          'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
+          'resource': resource
           });
         request.execute(function(resp) {
           if (resp && callback){
