@@ -530,38 +530,18 @@ define(function() {
      * Read a file from the GDrive cloud
      *
      * @param {String} file's path.
-     * @param {Function} callback whose argument is the file data if the file is
+     * @param {Function} callback whose argument is the file data object if the file is
      * successfuly read or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.readFile = function(filePath, callback) {
+      var self = this;
 
       this.isFile(filePath, function(fileResp) {
-
         if (fileResp) {
-          var accessToken = gapi.auth.getToken().access_token;
-          var xhr = new XMLHttpRequest();
-
-          xhr.open('GET', fileResp.downloadUrl);
-          xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-
-          // Response handlers.
-          xhr.onload = function() {
-            // convert from base 64 encoded string to ArrayBuffer
-            var fileData = fmjs.str2ab(atob(xhr.responseText));
-            callback(fileData);
-          };
-
-          xhr.onerror = function() {
-              window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
-              callback(null);
-          };
-
-          xhr.send();
-
+          self.readFileByID(fileResp.id, callback);
         } else {
           callback(null);
         }
-
       });
 
     };
@@ -572,32 +552,42 @@ define(function() {
      * current user.
      *
      * @param {String} file's id.
-     * @param {Function} callback whose argument is the file data if the file is
+     * @param {Function} callback whose argument is the file data object if the file is
      * successfuly read or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
-      var self = this;
-      var fTempName = 'temp' + fileID + '.tmp';
 
       if (this.driveAPILoaded) {
-        var copyRequest = gapi.client.drive.files.copy({
-          'fileId': fileID,
-          'resource': {'title': fTempName}
+        // Request file response object (resource)
+        var fileRequest = gapi.client.drive.files.get({
+          'fileId': fileID
         });
 
-        copyRequest.execute(function(copyResp) {
+        fileRequest.execute(function(fileResp) {
+          if (fileResp) {
+            var accessToken = gapi.auth.getToken().access_token;
+            var xhr = new XMLHttpRequest();
 
-          self.readFile(fTempName, function(dataResp) {
-            // Permanently delete the temporal file, skipping the trash.
-            var delRequest = gapi.client.drive.files.delete({
-              'fileId': copyResp.id
-            });
-            delRequest.execute(function(delResp) { window.console.log(delResp);});
+            xhr.open('GET', fileResp.downloadUrl);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
 
-            callback(dataResp);
-          });
+            // Response handlers.
+            xhr.onload = function() {
+              callback({meta: fileResp, data: xhr.responseText});
+            };
 
+            xhr.onerror = function() {
+                window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+                callback(null);
+            };
+
+            xhr.send();
+
+          } else {
+            callback(null);
+          }
         });
+
       } else {
         console.error("GDrive Api not loaded");
       }
