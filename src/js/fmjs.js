@@ -535,7 +535,7 @@ define(function() {
      */
     fmjs.GDriveFileManager.prototype.readFile = function(filePath, callback) {
 
-      this.isfile(filePath, function(fileResp) {
+      this.isFile(filePath, function(fileResp) {
 
         if (fileResp) {
           var accessToken = gapi.auth.getToken().access_token;
@@ -694,7 +694,7 @@ define(function() {
      */
     fmjs.GDriveFileManager.prototype.shareFile = function(filePath, permissions, callback) {
 
-      this.isfile(filePath, function(fileResp) {
+      this.isFile(filePath, function(fileResp) {
 
         if (fileResp) {
           var request = gapi.client.drive.permissions.insert({
