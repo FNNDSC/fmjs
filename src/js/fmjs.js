@@ -577,16 +577,17 @@ define(function() {
      */
     fmjs.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
       var self = this;
+      var fTempName = 'temp' + fileID + '.tmp';
 
       if (this.driveAPILoaded) {
         var copyRequest = gapi.client.drive.files.copy({
           'fileId': fileID,
-          'resource': {'title': 'tempGDriveFile.tmp'}
+          'resource': {'title': fTempName}
         });
 
         copyRequest.execute(function(copyResp) {
 
-          self.readFile('tempGDriveFile.tmp', function (dataResp) {
+          self.readFile(fTempName, function(dataResp) {
             // Permanently delete the temporal file, skipping the trash.
             var delRequest = gapi.client.drive.files.delete({
               'fileId': copyResp.id
