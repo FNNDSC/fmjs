@@ -463,6 +463,7 @@ define(function() {
      * found or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.isFile = function(filePath, callback) {
+      var self = this;
 
       function findEntry(rootResp, entries) {
         var findRequest;
@@ -484,46 +485,68 @@ define(function() {
         findRequest.execute(function(findResp) {
 
           if (findResp.items.length===0) {
-
-            console.error('File ' + filePath + ' not found!');
-            if (callback) {
-              callback(null);
-            }
-
+            console.log('File ' + filePath + ' not found!');
+            callback(null);
           } else {
-
             // Entry was found! Check if there are more entries
             entries = entries.slice(1);
             if (entries.length) {
               // Recursively move to subsequent entry
               findEntry(findResp.items[0], entries);
-            } else if (callback) {
+            } else {
               // No more entries, current entry is the file
               // Request file response object (resource)
-              var request = gapi.client.drive.files.get({
-                'fileId': findResp.items[0].id
-              });
-              request.execute(function(resp) {
-                callback(resp);
+              self.getFileMeta(findResp.items[0].id, function(fileResp) {
+                callback(fileResp);
               });
             }
-
           }
-
         });
       }
 
       if (this.driveAPILoaded) {
+
         var entries = fmjs.path2array(filePath);
+
         if (entries.length) {
           findEntry({'id': 'root'}, entries);
-        } else if (callback) {
+        } else {
           callback(null);
         }
+
       } else {
         console.error("GDrive Api not loaded");
       }
 
+    };
+
+    /**
+     * Given a file id get the file response object containing the file meta information
+     * from the GDrive cloud if authorized. Can get file meta from another user's GDrive
+     * if read permission has been granted to the current user.
+     *
+     * @param {String} file's id.
+     * @param {Function} callback whose argument is the file response object if the request
+     * is successful.
+     */
+    fmjs.GDriveFileManager.prototype.getFileMeta = function(fileId, callback) {
+
+      if (this.driveAPILoaded) {
+        // Request file response object (resource)
+        var fileRequest = gapi.client.drive.files.get({
+          'fileId': fileId
+        });
+
+        fileRequest.execute(function(fileResp) {
+          if (fileResp) {
+            callback(fileResp);
+          } else {
+            console.error('Could not retrive file with id ' + fileId);
+          }
+        });
+      } else {
+        console.error("GDrive Api not loaded");
+      }
     };
 
     /**
@@ -555,43 +578,33 @@ define(function() {
      * @param {Function} callback whose argument is the file data object if the file is
      * successfuly read or null otherwise.
      */
-    fmjs.GDriveFileManager.prototype.readFileByID = function(fileID, callback) {
+    fmjs.GDriveFileManager.prototype.readFileByID = function(fileId, callback) {
 
-      if (this.driveAPILoaded) {
-        // Request file response object (resource)
-        var fileRequest = gapi.client.drive.files.get({
-          'fileId': fileID
-        });
+      this.getFileMeta(fileId, function(fileResp) {
 
-        fileRequest.execute(function(fileResp) {
-          if (fileResp) {
-            var accessToken = gapi.auth.getToken().access_token;
-            var xhr = new XMLHttpRequest();
+        if (fileResp) {
+          var accessToken = gapi.auth.getToken().access_token;
+          var xhr = new XMLHttpRequest();
 
-            xhr.open('GET', fileResp.downloadUrl);
-            xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+          xhr.open('GET', fileResp.downloadUrl);
+          xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
 
-            // Response handlers.
-            xhr.onload = function() {
-              callback({meta: fileResp, data: xhr.responseText});
-            };
+          // Response handlers.
+          xhr.onload = function() {
+            callback({meta: fileResp, data: xhr.responseText});
+          };
 
-            xhr.onerror = function() {
-                window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
-                callback(null);
-            };
+          xhr.onerror = function() {
+              window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+              callback(null);
+          };
 
-            xhr.send();
+          xhr.send();
 
-          } else {
-            callback(null);
-          }
-        });
-
-      } else {
-        console.error("GDrive Api not loaded");
-      }
-
+        } else {
+          callback(null);
+        }
+      });
     };
 
     /**
@@ -708,18 +721,18 @@ define(function() {
      * @param {Function} optional callback whose argument is the shared file
      * response object if found or null otherwise.
      */
-    fmjs.GDriveFileManager.prototype.shareFileById = function(fileID, permissions, callback) {
+    fmjs.GDriveFileManager.prototype.shareFileById = function(fileId, permissions, callback) {
 
       if (this.driveAPILoaded) {
         var request = gapi.client.drive.permissions.insert({
-          'fileId': fileID,
+          'fileId': fileId,
           'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
           });
         request.execute(function(resp) {
           if (resp && callback){
             callback(resp);
           } else if (callback) {
-            console.error("File with id: " + fileID + " not found");
+            console.error("File with id: " + fileId + " not found");
             callback(null);
           }
         });
