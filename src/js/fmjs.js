@@ -302,7 +302,7 @@ define(function() {
       this.autorized = false;
       // Has Google Drive API been loaded?
       this.driveAPILoaded = false;
-      // Current user information (name, email)
+      // Current user information (name, mail)
       this.userInfo = null;
 
     };
@@ -743,8 +743,8 @@ define(function() {
     /**
      * Get information about current GDrive user.
      *
-     * @param {Function} optional callback whose argument is an object with the user
-     * info (properties: name, emailAddress).
+     * @param {Function} callback whose argument is an object with the user
+     * info (properties: name, mail).
      */
     fmjs.GDriveFileManager.prototype.getUserInfo = function(callback) {
       var self = this;
@@ -752,14 +752,20 @@ define(function() {
       if (this.userInfo) {
         callback(this.userInfo);
       } else {
-        var request = gapi.client.drive.about.get();
-        request.execute(function(resp) {
-          var userDataObj = {name: resp.name, emailAddress: resp.user.emailAddress};
-          self.userInfo = userDataObj;
-          callback(userDataObj);
-        });
-      }
 
+        if (this.driveAPILoaded) {
+          var request = gapi.client.drive.about.get();
+
+          request.execute(function(resp) {
+            var userDataObj = {name: resp.name, mail: resp.user.emailAddress};
+
+            self.userInfo = userDataObj;
+            callback(userDataObj);
+          });
+        } else {
+          console.error("GDrive Api not loaded");
+        }
+      }
     };
 
 
