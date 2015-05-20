@@ -693,20 +693,16 @@ define(function() {
      * @param {Object} object with properties: value, type, role as indicated at:
      * https://developers.google.com/drive/v2/reference/permissions/insert
      * @param {Function} optional callback whose argument is the shared file
-     * response object if found or null otherwise.
+     * response object.
      */
     fmjs.GDriveFileManager.prototype.shareFile = function(filePath, permissions, callback) {
+      var self = this;
 
       this.isFile(filePath, function(fileResp) {
-
         if (fileResp) {
-          var request = gapi.client.drive.permissions.insert({
-            'fileId': fileResp.id,
-            'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
-            });
-          request.execute(function(resp) {if (callback) {callback(resp);}});
-        } else if (callback) {
-          callback(null);
+          self.shareFileById(fileResp.id, permissions, callback);
+        } else {
+          console.error("File " + filePath + " not found");
         }
       });
 
@@ -719,23 +715,25 @@ define(function() {
      * @param {Object} object with properties: value, type, role as indicated at:
      * https://developers.google.com/drive/v2/reference/permissions/insert
      * @param {Function} optional callback whose argument is the shared file
-     * response object if found or null otherwise.
+     * response object.
      */
     fmjs.GDriveFileManager.prototype.shareFileById = function(fileId, permissions, callback) {
 
       if (this.driveAPILoaded) {
+
         var request = gapi.client.drive.permissions.insert({
           'fileId': fileId,
           'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
           });
+
         request.execute(function(resp) {
-          if (resp && callback){
+          if (resp && callback) {
             callback(resp);
-          } else if (callback) {
-            console.error("File with id: " + fileId + " not found");
-            callback(null);
+          } else if (!resp) {
+            console.error("File with id: " + fileId + "could not be shared");
           }
         });
+
       } else {
         console.error("GDrive Api not loaded");
       }
