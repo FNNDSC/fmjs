@@ -13,7 +13,7 @@
  */
 
 // define a new module
-define(function() {
+define(['gapi'], function() {
 
   /**
    * Provide a namespace for the file manager module
