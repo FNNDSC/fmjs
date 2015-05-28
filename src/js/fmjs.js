@@ -608,6 +608,45 @@ define(['gapi'], function() {
     };
 
     /**
+     * Given a file id read the file from the GDrive cloud if authorized and return a Blob
+     * object. Can read a file from another user's GDrive if read permission has been granted
+     * to the current user.
+     *
+     * @param {String} file's id.
+     * @param {Function} callback whose argument is the Blob object if the file is
+     * successfuly read or null otherwise.
+     */
+    fmjs.GDriveFileManager.prototype.getFileBlob = function(fileId, callback) {
+
+      this.getFileMeta(fileId, function(fileResp) {
+
+        if (fileResp) {
+          var accessToken = gapi.auth.getToken().access_token;
+          var xhr = new XMLHttpRequest();
+
+          xhr.open('GET', fileResp.downloadUrl);
+          xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+
+          // Response handlers.
+          xhr.responseType = "blob"; // force the HTTP response, response-type header to be blob
+          xhr.onload = function() {
+            callback(xhr.response);
+          };
+
+          xhr.onerror = function() {
+            window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+            callback(null);
+          };
+
+          xhr.send();
+
+        } else {
+          callback(null);
+        }
+      });
+    };
+
+    /**
      * Write a file to GDrive
      *
      * @param {String} file's path.
