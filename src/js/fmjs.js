@@ -290,16 +290,19 @@ define(['gapi'], function() {
      * @constructor
      * @extends {fmjs.AbstractFileManager}
      * @param {String} Client ID from the Google's developer console.
+     * @param {String} Api key from the Google's developer console.
      */
-    fmjs.GDriveFileManager = function(clientId) {
+    fmjs.GDriveFileManager = function(clientId, apiKey) {
       // Google's ID for the client app
       this.CLIENT_ID = clientId;
+      // Google's Api key for the client app
+      this.apiKey = apiKey;
       // Permissions to access files uploaded through the API
       this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
       // Has OAuth 2.0 client library been loaded?
       this.clientOAuthAPILoaded = false;
       // Has the client app been authorized?
-      this.autorized = false;
+      this.authorized = false;
       // Has Google Drive API been loaded?
       this.driveAPILoaded = false;
       // Current user information (name, mail)
@@ -368,6 +371,7 @@ define(['gapi'], function() {
          } else {
            gapi.load('auth:client', function() {
              self.clientOAuthAPILoaded = true;
+             gapi.client.setApiKey(self.apiKey);
              authorize();
             });
          }
@@ -527,27 +531,43 @@ define(['gapi'], function() {
      *
      * @param {String} file's id.
      * @param {Function} callback whose argument is the file response object if the request
-     * is successful.
+     * is successful or null otherwise.
      */
-    fmjs.GDriveFileManager.prototype.getFileMeta = function(fileId, callback) {
+     fmjs.GDriveFileManager.prototype.getFileMeta = function(fileId, callback) {
+       var self = this;
 
-      if (this.driveAPILoaded) {
-        // Request file response object (resource)
-        var fileRequest = gapi.client.drive.files.get({
-          'fileId': fileId
-        });
+       if (this.driveAPILoaded) {
+         // Request file response object (resource)
+         var fileRequest = gapi.client.drive.files.get({
+           'fileId': fileId
+         });
 
-        fileRequest.execute(function(fileResp) {
-          if (fileResp) {
-            callback(fileResp);
-          } else {
-            console.error('Could not retrive file with id ' + fileId);
-          }
-        });
-      } else {
-        console.error("GDrive Api not loaded");
-      }
-    };
+         fileRequest.execute(function(fileResp) {
+           if (!fileResp.error) {
+             callback(fileResp);
+           } else {
+             // auth token might have expired so check authorization
+             self.authorize(true, function(authorized) {
+               if (authorized) {
+                 fileRequest.execute(function(fileResp2) {
+                   if (!fileResp2.error) {
+                     callback(fileResp2);
+                   } else {
+                     console.error('Could not retrive file with id ' + fileId);
+                     callback(null);
+                   }
+                 });
+               } else {
+                 console.error('Could not retrive file with id ' + fileId + '. No access token could be retrieved');
+                 callback(null);
+               }
+             });
+           }
+         });
+       } else {
+         console.error("GDrive Api not loaded");
+       }
+     };
 
     /**
      * Read a file from the GDrive cloud
@@ -560,7 +580,7 @@ define(['gapi'], function() {
       var self = this;
 
       this.isFile(filePath, function(fileResp) {
-        if (fileResp) {
+        if (fileResp && !fileResp.error) {
           self.readFileByID(fileResp.id, callback);
         } else {
           callback(null);
@@ -738,7 +758,7 @@ define(['gapi'], function() {
       var self = this;
 
       this.isFile(filePath, function(fileResp) {
-        if (fileResp) {
+        if (fileResp && !fileResp.error) {
           self.shareFileById(fileResp.id, permissions, callback);
         } else {
           console.error("File " + filePath + " not found");
@@ -754,9 +774,10 @@ define(['gapi'], function() {
      * @param {Object} object with properties: value, type, role as indicated at:
      * https://developers.google.com/drive/v2/reference/permissions/insert
      * @param {Function} optional callback whose argument is the shared file
-     * response object.
+     * response object or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.shareFileById = function(fileId, permissions, callback) {
+      var self = this;
 
       if (this.driveAPILoaded) {
 
@@ -765,13 +786,28 @@ define(['gapi'], function() {
           'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
           });
 
-        request.execute(function(resp) {
-          if (resp && callback) {
-            callback(resp);
-          } else if (!resp) {
-            console.error("File with id: " + fileId + "could not be shared");
-          }
-        });
+          request.execute(function(resp) {
+            if (!resp.error) {
+              if (callback) {callback(resp);}
+            } else {
+              // auth token might have expired so check authorization
+              self.authorize(true, function(authorized) {
+                if (authorized) {
+                  request.execute(function(resp2) {
+                    if (!resp2.error) {
+                      if (callback) {callback(resp2);}
+                    } else {
+                      console.error('Could not share file with id ' + fileId);
+                      callback(null);
+                    }
+                  });
+                } else {
+                  console.error('Could not share file with id ' + fileId + '. No access token could be retrieved');
+                  callback(null);
+                }
+              });
+            }
+          });
 
       } else {
         console.error("GDrive Api not loaded");
@@ -783,7 +819,7 @@ define(['gapi'], function() {
      * Get information about current GDrive user.
      *
      * @param {Function} callback whose argument is an object with the user
-     * info (properties: name, mail).
+     * info (properties: name, mail) or null if there was an error.
      */
     fmjs.GDriveFileManager.prototype.getUserInfo = function(callback) {
       var self = this;
@@ -796,11 +832,32 @@ define(['gapi'], function() {
           var request = gapi.client.drive.about.get();
 
           request.execute(function(resp) {
-            var userDataObj = {name: resp.name, mail: resp.user.emailAddress};
-
-            self.userInfo = userDataObj;
-            callback(userDataObj);
+            if (!resp.error) {
+              var userDataObj = {name: resp.name, mail: resp.user.emailAddress};
+              self.userInfo = userDataObj;
+              callback(userDataObj);
+            } else {
+              // auth token might have expired so check authorization
+              self.authorize(true, function(authorized) {
+                if (authorized) {
+                  request.execute(function(resp2) {
+                    if (!resp2.error) {
+                      var userDataObj = {name: resp2.name, mail: resp2.user.emailAddress};
+                      self.userInfo = userDataObj;
+                      callback(userDataObj);
+                    } else {
+                      console.error('Could not retrieve current user info');
+                      callback(null);
+                    }
+                  });
+                } else {
+                  console.error('Could not retrieve current user info. No access token could be retrieved');
+                  callback(null);
+                }
+              });
+            }
           });
+
         } else {
           console.error("GDrive Api not loaded");
         }

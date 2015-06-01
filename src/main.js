@@ -9,8 +9,9 @@ require.config({
 
 require(['fmjs'], function(fmjs) {
 
-  var CLIENT_ID = '358010366372-o8clkqjol0j533tp6jlnpjr2u2cdmks6.apps.googleusercontent.com';
-  var driveFm = new fmjs.GDriveFileManager(CLIENT_ID);
+  var CLIENT_ID = '358010366372-ic7r5npijns67822bmgeu2v9q38fkqhb.apps.googleusercontent.com';
+  var apiKey = 'AIzaSyDDOw0gfOPqWSiz-eh1zp_oBWXNPFcaaKs';
+  var driveFm = new fmjs.GDriveFileManager(CLIENT_ID, apiKey);
 
   /**
   * Request GDrive authorization, load the GDriveFileManager Api and log current user
