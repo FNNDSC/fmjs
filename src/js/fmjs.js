@@ -296,13 +296,11 @@ define(['gapi'], function() {
       // Google's ID for the client app
       this.CLIENT_ID = clientId;
       // Google's Api key for the client app
-      this.apiKey = apiKey;
+      this.API_KEY = apiKey;
       // Permissions to access files uploaded through the API
       this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
       // Has OAuth 2.0 client library been loaded?
       this.clientOAuthAPILoaded = false;
-      // Has the client app been authorized?
-      this.authorized = false;
       // Has Google Drive API been loaded?
       this.driveAPILoaded = false;
       // Current user information (name, mail)
@@ -353,7 +351,6 @@ define(['gapi'], function() {
            function(authResult) {
              if (authResult && !authResult.error) {
                // Access token has been successfully retrieved, requests can be sent to the API.
-               self.authorized = true;
                callback(true);
              } else {
                // No access token could be retrieved,
@@ -362,32 +359,29 @@ define(['gapi'], function() {
          });
        }
 
-       if (this.authorized) {
-         callback(true);
-       } else{
-         if (this.clientOAuthAPILoaded) {
-           // OAuth client library has already been loaded, requests using it can be sent
+       if (this.clientOAuthAPILoaded) {
+         // OAuth client library has already been loaded, requests using it can be sent
+         gapi.client.setApiKey(self.API_KEY);
+         authorize();
+       } else {
+         gapi.load('auth:client', function() {
+           self.clientOAuthAPILoaded = true;
+           gapi.client.setApiKey(self.API_KEY);
            authorize();
-         } else {
-           gapi.load('auth:client', function() {
-             self.clientOAuthAPILoaded = true;
-             gapi.client.setApiKey(self.apiKey);
-             authorize();
-            });
-         }
+         });
        }
-
      };
 
     /**
-     * Load GDrive API if the client app has been authorized
+     * Load GDrive API
      *
      * @param {Function} callback to be called when the api is loaded
      */
      fmjs.GDriveFileManager.prototype.loadApi = function(callback) {
        var self = this;
 
-       if (this.authorized) {
+       if (this.clientOAuthAPILoaded) {
+         // OAuth client library has already been loaded, requests using it can be sent
          if (this.driveAPILoaded) {
            callback();
          } else {
@@ -397,8 +391,44 @@ define(['gapi'], function() {
            });
          }
        } else {
-         console.error("The app has not been authorized");
+         gapi.load('auth:client', function() {
+           self.clientOAuthAPILoaded = true;
+           gapi.client.load('drive', 'v2', function() {
+             self.driveAPILoaded = true;
+             callback();
+           });
+         });
        }
+     };
+
+
+     /**
+      * Execute a GDrive API request. If there is a response error then the auth token is
+      * checked for expiration and a second attempt to execute the request is made.
+      *
+      * @param {Object} GDrive request object.
+      * @param {Function} callback whose argument is the request response.
+      */
+     fmjs.GDriveFileManager.prototype.execGDriveRequest = function(request, callback) {
+       var self = this;
+
+       request.execute(function(resp) {
+         if (resp.error) {
+           // auth token might have expired so check authorization
+            self.authorize(true, function(authorized) {
+              if (authorized) {
+                request.execute(function(resp2) {
+                  callback(resp2);
+                });
+              } else {
+                console.error('Authorization failed. No access token could be retrieved!');
+                callback(resp);
+              }
+            });
+         } else {
+           callback(resp);
+         }
+       });
      };
 
     /**
@@ -409,39 +439,49 @@ define(['gapi'], function() {
      * response object or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.createPath = function(path, callback) {
+      var self = this;
 
       function createFolder(rootResp, folders) {
         // list folder with name folders[0] if it already exists
         var findRequest = gapi.client.drive.children.list({
           'folderId': rootResp.id,
           'q': "mimeType='application/vnd.google-apps.folder' and title='" + folders[0] + "'"
-          });
+        });
 
-        findRequest.execute(function(findResp) {
-          // if folder not found then create it
-          if (findResp.items.length===0) {
-            var request = gapi.client.drive.files.insert({
-              'resource': {'title': folders[0], 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': rootResp.id}]}
-            });
+        self.execGDriveRequest(findRequest, function(findResp) {
+          if (!findResp.error) {
+            // if folder not found then create it
+            if (findResp.items.length===0) {
+              var request = gapi.client.drive.files.insert({
+                'resource': {'title': folders[0], 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': rootResp.id}]}
+              });
 
-            request.execute(function(resp) {
+              self.execGDriveRequest(request, function(resp) {
+                if (!resp.error) {
+                  folders = folders.slice(1);
+                  if (folders.length) {
+                    //recursively create subsequent folders if needed
+                    createFolder(resp, folders);
+                  } else if (callback) {
+                    callback(resp);
+                  }
+                } else {
+                  console.log('Error: ', resp.error);
+                  if (callback) {callback(null);}
+                }
+              });
+            } else {
               folders = folders.slice(1);
               if (folders.length) {
-                //recursively create subsequent folders if needed
-                createFolder(resp, folders);
+                // recursively create subsequent folders if needed
+                createFolder(findResp.items[0], folders);
               } else if (callback) {
-                callback(resp);
+                callback(findResp.items[0]);
               }
-            });
-
-          } else {
-            folders = folders.slice(1);
-            if (folders.length) {
-              // recursively create subsequent folders if needed
-              createFolder(findResp.items[0], folders);
-            } else if (callback) {
-              callback(findResp.items[0]);
             }
+          } else {
+            console.log('Error: ', findResp.error);
+            if (callback) {callback(null);}
           }
         });
       }
@@ -456,7 +496,6 @@ define(['gapi'], function() {
       } else {
         console.error("GDrive Api not loaded");
       }
-
     };
 
     /**
@@ -486,30 +525,34 @@ define(['gapi'], function() {
           });
         }
 
-        findRequest.execute(function(findResp) {
+        self.execGDriveRequest(findRequest, function(findResp) {
 
-          if (findResp.items.length===0) {
-            console.log('File ' + filePath + ' not found!');
-            callback(null);
-          } else {
-            // Entry was found! Check if there are more entries
-            entries = entries.slice(1);
-            if (entries.length) {
-              // Recursively move to subsequent entry
-              findEntry(findResp.items[0], entries);
+          if (!findResp.error) {
+            if (findResp.items.length===0) {
+              console.log('File ' + filePath + ' not found!');
+              callback(null);
             } else {
-              // No more entries, current entry is the file
-              // Request file response object (resource)
-              self.getFileMeta(findResp.items[0].id, function(fileResp) {
-                callback(fileResp);
-              });
+              // Entry was found! Check if there are more entries
+              entries = entries.slice(1);
+              if (entries.length) {
+                // Recursively move to subsequent entry
+                findEntry(findResp.items[0], entries);
+              } else {
+                // No more entries, current entry is the file
+                // Request file response object (resource)
+                self.getFileMeta(findResp.items[0].id, function(fileResp) {
+                  callback(fileResp);
+                });
+              }
             }
+          } else {
+            console.log('Error: ', findResp.error);
+            callback(null);
           }
         });
       }
 
       if (this.driveAPILoaded) {
-
         var entries = fmjs.path2array(filePath);
 
         if (entries.length) {
@@ -517,11 +560,9 @@ define(['gapi'], function() {
         } else {
           callback(null);
         }
-
       } else {
         console.error("GDrive Api not loaded");
       }
-
     };
 
     /**
@@ -534,7 +575,6 @@ define(['gapi'], function() {
      * is successful or null otherwise.
      */
      fmjs.GDriveFileManager.prototype.getFileMeta = function(fileId, callback) {
-       var self = this;
 
        if (this.driveAPILoaded) {
          // Request file response object (resource)
@@ -542,26 +582,12 @@ define(['gapi'], function() {
            'fileId': fileId
          });
 
-         fileRequest.execute(function(fileResp) {
+         this.execGDriveRequest(fileRequest, function(fileResp) {
            if (!fileResp.error) {
              callback(fileResp);
            } else {
-             // auth token might have expired so check authorization
-             self.authorize(true, function(authorized) {
-               if (authorized) {
-                 fileRequest.execute(function(fileResp2) {
-                   if (!fileResp2.error) {
-                     callback(fileResp2);
-                   } else {
-                     console.error('Could not retrive file with id ' + fileId);
-                     callback(null);
-                   }
-                 });
-               } else {
-                 console.error('Could not retrive file with id ' + fileId + '. No access token could be retrieved');
-                 callback(null);
-               }
-             });
+             console.error('Could not retrive file with id ' + fileId);
+             callback(null);
            }
          });
        } else {
@@ -602,7 +628,7 @@ define(['gapi'], function() {
 
       this.getFileMeta(fileId, function(fileResp) {
 
-        if (fileResp) {
+        if (fileResp && !fileResp.error) {
           var accessToken = gapi.auth.getToken().access_token;
           var xhr = new XMLHttpRequest();
 
@@ -640,7 +666,7 @@ define(['gapi'], function() {
 
       this.getFileMeta(fileId, function(fileResp) {
 
-        if (fileResp) {
+        if (fileResp && !fileResp.error) {
           var accessToken = gapi.auth.getToken().access_token;
           var xhr = new XMLHttpRequest();
 
@@ -674,49 +700,49 @@ define(['gapi'], function() {
      * @param {Function} optional callback whose argument is the file response object.
      */
     fmjs.GDriveFileManager.prototype.writeFile = function(filePath, fileData, callback) {
+      var self = this;
 
       // callback to insert new file.
       function writeFile(baseDirResp) {
 
-        var boundary = '-------314159265358979323846';
-        var delimiter = "\r\n--" + boundary + "\r\n";
-        var close_delim = "\r\n--" + boundary + "--";
+        if (baseDirResp && !baseDirResp.error) {
+          var boundary = '-------314159265358979323846';
+          var delimiter = "\r\n--" + boundary + "\r\n";
+          var close_delim = "\r\n--" + boundary + "--";
 
-        var contentType = fileData.type || 'application/octet-stream';
-        var name = fileData.name || filePath.substring(filePath.lastIndexOf('/') + 1);
-        var metadata = {
-          'title': name,
-          'mimeType': contentType,
-          'parents': [{'id': baseDirResp.id}]
-        };
-
-        var base64Data = btoa(fmjs.ab2str(fileData));
-        var multipartRequestBody =
-            delimiter +
-            'Content-Type: application/json\r\n\r\n' +
-            JSON.stringify(metadata) +
-            delimiter +
-            'Content-Type: ' + contentType + '\r\n' +
-            'Content-Transfer-Encoding: base64\r\n' +
-            '\r\n' +
-            base64Data +
-            close_delim;
-
-        var request = gapi.client.request({
-            'path': '/upload/drive/v2/files',
-            'method': 'POST',
-            'params': {'uploadType': 'multipart' /*resumable for more than 5MB files*/},
-              'headers': {
-                'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
-              },
-              'body': multipartRequestBody});
-        if (!callback) {
-          callback = function(fileResp) {
-            window.console.log(fileResp);
+          var contentType = fileData.type || 'application/octet-stream';
+          var name = fileData.name || filePath.substring(filePath.lastIndexOf('/') + 1);
+          var metadata = {
+            'title': name,
+            'mimeType': contentType,
+            'parents': [{'id': baseDirResp.id}]
           };
-        }
-        request.execute(callback);
 
+          var base64Data = btoa(fmjs.ab2str(fileData));
+          var multipartRequestBody =
+              delimiter +
+              'Content-Type: application/json\r\n\r\n' +
+              JSON.stringify(metadata) +
+              delimiter +
+              'Content-Type: ' + contentType + '\r\n' +
+              'Content-Transfer-Encoding: base64\r\n' +
+              '\r\n' +
+              base64Data +
+              close_delim;
+
+          var request = gapi.client.request({
+              'path': '/upload/drive/v2/files',
+              'method': 'POST',
+              'params': {'uploadType': 'multipart' /*resumable for more than 5MB files*/},
+                'headers': {
+                  'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+                },
+                'body': multipartRequestBody});
+
+          self.execGDriveRequest(request, function(resp) {
+            if (callback) {callback(resp);}
+          });
+        }
       }
 
       var basedir = filePath.substring(0, filePath.lastIndexOf('/'));
@@ -734,15 +760,23 @@ define(['gapi'], function() {
       var idx = filePath.lastIndexOf('/');
       var baseDir = filePath.substring(0, idx);
       var name = filePath.substring(idx + 1);
+      var self = this;
 
       this.createPath(baseDir, function(baseDirResp) {
-        gapi.client.drive.files.insert({
-        'resource': {
-          mimeType: mimeType,
-          title: name,
-          'parents': [{'id': baseDirResp.id}]
+        if (baseDirResp && !baseDirResp.error) {
+          var request = gapi.client.drive.files.insert({
+            'resource': {
+              mimeType: mimeType,
+              title: name,
+              'parents': [{'id': baseDirResp.id}]
+              }
+          });
+
+          self.execGDriveRequest(request, function(resp) {
+            if (callback) {callback(resp);}
+          });
         }
-      }).execute(callback);});
+      });
     };
 
     /**
@@ -777,42 +811,24 @@ define(['gapi'], function() {
      * response object or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.shareFileById = function(fileId, permissions, callback) {
-      var self = this;
 
       if (this.driveAPILoaded) {
-
         var request = gapi.client.drive.permissions.insert({
           'fileId': fileId,
           'resource': {'value': permissions.value, 'type': permissions.type, 'role': permissions.role}
           });
 
-          request.execute(function(resp) {
-            if (!resp.error) {
-              if (callback) {callback(resp);}
-            } else {
-              // auth token might have expired so check authorization
-              self.authorize(true, function(authorized) {
-                if (authorized) {
-                  request.execute(function(resp2) {
-                    if (!resp2.error) {
-                      if (callback) {callback(resp2);}
-                    } else {
-                      console.error('Could not share file with id ' + fileId);
-                      callback(null);
-                    }
-                  });
-                } else {
-                  console.error('Could not share file with id ' + fileId + '. No access token could be retrieved');
-                  callback(null);
-                }
-              });
-            }
-          });
-
+        this.execGDriveRequest(request, function(resp) {
+          if (!resp.error) {
+            if (callback) {callback(resp);}
+          } else {
+            console.error('Could not share file with id ' + fileId);
+            if (callback) {callback(null);}
+          }
+        });
       } else {
         console.error("GDrive Api not loaded");
       }
-
     };
 
     /**
@@ -827,37 +843,20 @@ define(['gapi'], function() {
       if (this.userInfo) {
         callback(this.userInfo);
       } else {
-
+        // retrieve the user info from GDrive
         if (this.driveAPILoaded) {
           var request = gapi.client.drive.about.get();
 
-          request.execute(function(resp) {
+          this.execGDriveRequest(request, function(resp) {
             if (!resp.error) {
               var userDataObj = {name: resp.name, mail: resp.user.emailAddress};
               self.userInfo = userDataObj;
               callback(userDataObj);
             } else {
-              // auth token might have expired so check authorization
-              self.authorize(true, function(authorized) {
-                if (authorized) {
-                  request.execute(function(resp2) {
-                    if (!resp2.error) {
-                      var userDataObj = {name: resp2.name, mail: resp2.user.emailAddress};
-                      self.userInfo = userDataObj;
-                      callback(userDataObj);
-                    } else {
-                      console.error('Could not retrieve current user info');
-                      callback(null);
-                    }
-                  });
-                } else {
-                  console.error('Could not retrieve current user info. No access token could be retrieved');
-                  callback(null);
-                }
-              });
+              console.error('Could not retrieve current user info');
+              callback(null);
             }
           });
-
         } else {
           console.error("GDrive Api not loaded");
         }

@@ -10,7 +10,7 @@ require.config({
 require(['fmjs'], function(fmjs) {
 
   var CLIENT_ID = '358010366372-ic7r5npijns67822bmgeu2v9q38fkqhb.apps.googleusercontent.com';
-  var apiKey = 'AIzaSyDDOw0gfOPqWSiz-eh1zp_oBWXNPFcaaKs';
+  var apiKey = 'AIzaSyAb1sp5BUyU-wLd6RwMTLqXuMo8dyTOF_E';
   var driveFm = new fmjs.GDriveFileManager(CLIENT_ID, apiKey);
 
   /**
