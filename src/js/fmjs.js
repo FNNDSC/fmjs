@@ -290,15 +290,12 @@ define(['gapi'], function() {
      * @constructor
      * @extends {fmjs.AbstractFileManager}
      * @param {String} Client ID from the Google's developer console.
-     * @param {String} Api key from the Google's developer console.
      */
-    fmjs.GDriveFileManager = function(clientId, apiKey) {
+    fmjs.GDriveFileManager = function(clientId) {
       // Google's ID for the client app
       this.CLIENT_ID = clientId;
-      // Google's Api key for the client app
-      this.API_KEY = apiKey;
-      // Permissions to access files uploaded through the API
-      this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+      // Permissions to access files uploaded through the API and read-only access to files
+      this.SCOPES = ['https://www.googleapis.com/auth/drive.file','https://www.googleapis.com/auth/drive.readonly'];
       // Has OAuth 2.0 client library been loaded?
       this.clientOAuthAPILoaded = false;
       // Has Google Drive API been loaded?
@@ -327,14 +324,24 @@ define(['gapi'], function() {
         callback(true);
       }
 
-      this.authorize(immediate, function(authorized) {
-        if (authorized) {
-          self.loadApi(callbackClosure);
-        } else {
-          callback(false);
-        }
-      });
+      function authorize() {
+        self.authorize(immediate, function(authorized) {
+          if (authorized) {
+            self.loadApi(callbackClosure);
+          } else {
+            callback(false);
+          }
+        });
+      }
 
+      if (self.clientOAuthAPILoaded) {
+        authorize();
+      } else {
+        gapi.load('auth:client', function() {
+          self.clientOAuthAPILoaded = true;
+          authorize();
+        });
+      }
     };
 
     /**
@@ -346,7 +353,8 @@ define(['gapi'], function() {
      fmjs.GDriveFileManager.prototype.authorize = function(immediate, callback) {
        var self = this;
 
-       function authorize() {
+       if (self.clientOAuthAPILoaded) {
+         // OAuth client library has already been loaded, requests using it can be sent
          gapi.auth.authorize({'client_id': self.CLIENT_ID, 'scope': self.SCOPES, 'immediate': immediate},
            function(authResult) {
              if (authResult && !authResult.error) {
@@ -356,18 +364,6 @@ define(['gapi'], function() {
                // No access token could be retrieved,
                callback(false);
              }
-         });
-       }
-
-       if (this.clientOAuthAPILoaded) {
-         // OAuth client library has already been loaded, requests using it can be sent
-         gapi.client.setApiKey(self.API_KEY);
-         authorize();
-       } else {
-         gapi.load('auth:client', function() {
-           self.clientOAuthAPILoaded = true;
-           gapi.client.setApiKey(self.API_KEY);
-           authorize();
          });
        }
      };
@@ -390,17 +386,8 @@ define(['gapi'], function() {
              callback();
            });
          }
-       } else {
-         gapi.load('auth:client', function() {
-           self.clientOAuthAPILoaded = true;
-           gapi.client.load('drive', 'v2', function() {
-             self.driveAPILoaded = true;
-             callback();
-           });
-         });
        }
      };
-
 
      /**
       * Execute a GDrive API request. If there is a response error then the auth token is
