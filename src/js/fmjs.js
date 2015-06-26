@@ -369,7 +369,7 @@ define(['gapi'], function() {
      };
 
     /**
-     * Load GDrive API
+     * Load GDrive API.
      *
      * @param {Function} callback to be called when the api is loaded
      */
@@ -390,36 +390,55 @@ define(['gapi'], function() {
      };
 
      /**
-      * Execute a GDrive API request. If there is a response error then the auth token is
-      * checked for expiration and a second attempt to execute the request is made.
+      * Execute a GDrive API request.
       *
       * @param {Object} GDrive request object.
       * @param {Function} callback whose argument is the request response.
       */
      fmjs.GDriveFileManager.prototype.execGDriveRequest = function(request, callback) {
        var self = this;
+       var ncalls = 0;
 
-       request.execute(function(resp) {
-         if (resp.error) {
-           // auth token might have expired so check authorization
-            self.authorize(true, function(authorized) {
-              if (authorized) {
-                request.execute(function(resp2) {
-                  callback(resp2);
+       function execRequest() {
+
+         request.execute(function(resp) {
+           if (resp.error) {
+             ++ncalls;
+
+             if (resp.error.code===401) {
+
+               // auth token might have expired so check authorization
+                self.authorize(true, function(authorized) {
+                  if (authorized) {
+                    request.execute(function(resp2) {
+                      callback(resp2);
+                    });
+                  } else {
+                    console.error('Authorization failed. No access token could be retrieved!');
+                    callback(resp);
+                  }
                 });
-              } else {
-                console.error('Authorization failed. No access token could be retrieved!');
-                callback(resp);
-              }
-            });
-         } else {
-           callback(resp);
-         }
-       });
+             } else if (ncalls<=5) {
+
+               // exponential delay, maximum number of request attempts is 5
+               window.setTimeout(execRequest,
+                 Math.floor(1000*Math.pow(2, ncalls-1) + Math.random() * 100));
+
+             } else {
+               console.error(resp.error.message);
+               callback(resp);
+             }
+           } else {
+             callback(resp);
+           }
+         });
+       }
+
+       execRequest();
      };
 
     /**
-     * Create a new directory path in the GDrive cloud
+     * Create a new directory path in the GDrive cloud.
      *
      * @param {String} new absolute path to be created.
      * @param {Function} optional callback whose argument is the folder creation
@@ -486,7 +505,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Determine whether a file exists in the GDrive cloud
+     * Determine whether a file exists in the GDrive cloud.
      *
      * @param {String} file's path.
      * @param {Function} callback whose argument is the file response object if
@@ -583,7 +602,7 @@ define(['gapi'], function() {
      };
 
     /**
-     * Read a file from the GDrive cloud
+     * Read a file from the GDrive cloud.
      *
      * @param {String} file's path.
      * @param {Function} callback whose argument is the file data object if the file is
@@ -680,7 +699,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Write a file to GDrive
+     * Write a file to GDrive.
      *
      * @param {String} file's path.
      * @param {Array} ArrayBuffer object containing the file data.
@@ -737,7 +756,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Create a file in GDrive
+     * Create a file in GDrive.
      *
      * @param {String} file's path.
      * @param {String} MIME type string.
