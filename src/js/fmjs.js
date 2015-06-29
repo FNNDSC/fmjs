@@ -369,7 +369,7 @@ define(['gapi'], function() {
      };
 
     /**
-     * Load GDrive API.
+     * Load GDrive API
      *
      * @param {Function} callback to be called when the api is loaded
      */
@@ -438,7 +438,7 @@ define(['gapi'], function() {
      };
 
     /**
-     * Create a new directory path in the GDrive cloud.
+     * Create a new directory path in the GDrive cloud
      *
      * @param {String} new absolute path to be created.
      * @param {Function} optional callback whose argument is the folder creation
@@ -505,7 +505,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Determine whether a file exists in the GDrive cloud.
+     * Determine whether a file exists in the GDrive cloud
      *
      * @param {String} file's path.
      * @param {Function} callback whose argument is the file response object if
@@ -602,7 +602,7 @@ define(['gapi'], function() {
      };
 
     /**
-     * Read a file from the GDrive cloud.
+     * Read a file from the GDrive cloud
      *
      * @param {String} file's path.
      * @param {Function} callback whose argument is the file data object if the file is
@@ -631,28 +631,15 @@ define(['gapi'], function() {
      * successfuly read or null otherwise.
      */
     fmjs.GDriveFileManager.prototype.readFileByID = function(fileId, callback) {
+      var reader = new FileReader();
 
-      this.getFileMeta(fileId, function(fileResp) {
+      reader.onload = function() {
+        callback(reader.result);
+      };
 
-        if (fileResp && !fileResp.error) {
-          var accessToken = gapi.auth.getToken().access_token;
-          var xhr = new XMLHttpRequest();
-
-          xhr.open('GET', fileResp.downloadUrl);
-          xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-
-          // Response handlers.
-          xhr.onload = function() {
-            callback({meta: fileResp, data: xhr.responseText});
-          };
-
-          xhr.onerror = function() {
-              window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
-              callback(null);
-          };
-
-          xhr.send();
-
+      this.getFileBlob(fileId, function(blob) {
+        if (blob) {
+          reader.readAsArrayBuffer(blob);
         } else {
           callback(null);
         }
@@ -671,8 +658,9 @@ define(['gapi'], function() {
     fmjs.GDriveFileManager.prototype.getFileBlob = function(fileId, callback) {
 
       this.getFileMeta(fileId, function(fileResp) {
+        var ncalls = 0;
 
-        if (fileResp && !fileResp.error) {
+        function getBlob() {
           var accessToken = gapi.auth.getToken().access_token;
           var xhr = new XMLHttpRequest();
 
@@ -686,12 +674,22 @@ define(['gapi'], function() {
           };
 
           xhr.onerror = function() {
-            window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
-            callback(null);
+            ++ncalls;
+            if (ncalls<=5) {
+               // exponential delay, maximum number of request attempts is 5
+               window.setTimeout(getBlob,
+                 Math.floor(1000*Math.pow(2, ncalls-1) + Math.random() * 100));
+             } else {
+               window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+               callback(null);
+             }
           };
 
           xhr.send();
+        }
 
+        if (fileResp && !fileResp.error) {
+          getBlob();
         } else {
           callback(null);
         }
@@ -699,7 +697,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Write a file to GDrive.
+     * Write a file to GDrive
      *
      * @param {String} file's path.
      * @param {Array} ArrayBuffer object containing the file data.
@@ -756,7 +754,7 @@ define(['gapi'], function() {
     };
 
     /**
-     * Create a file in GDrive.
+     * Create a file in GDrive
      *
      * @param {String} file's path.
      * @param {String} MIME type string.
