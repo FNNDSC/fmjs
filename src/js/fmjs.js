@@ -655,46 +655,44 @@ define(['gapi'], function() {
      * @param {Function} callback whose argument is the Blob object if the file is
      * successfuly read or null otherwise.
      */
-    fmjs.GDriveFileManager.prototype.getFileBlob = function(fileId, callback) {
+     fmjs.GDriveFileManager.prototype.getFileBlob = function(fileId, callback) {
+       var ncalls = 0;
+       var self = this;
 
-      this.getFileMeta(fileId, function(fileResp) {
-        var ncalls = 0;
+       function getBlob() {
 
-        function getBlob() {
-          var accessToken = gapi.auth.getToken().access_token;
-          var xhr = new XMLHttpRequest();
+         self.getFileMeta(fileId, function(fileResp) {
 
-          xhr.open('GET', fileResp.downloadUrl);
-          xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+           var accessToken = gapi.auth.getToken().access_token;
+           var xhr = new XMLHttpRequest();
 
-          // Response handlers.
-          xhr.responseType = "blob"; // force the HTTP response, response-type header to be blob
-          xhr.onload = function() {
-            callback(xhr.response);
-          };
+           xhr.open('GET', fileResp.downloadUrl);
+           xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
 
-          xhr.onerror = function() {
-            ++ncalls;
-            if (ncalls<=5) {
-               // exponential delay, maximum number of request attempts is 5
-               window.setTimeout(getBlob,
-                 Math.floor(1000*Math.pow(2, ncalls-1) + Math.random() * 100));
-             } else {
-               window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
-               callback(null);
-             }
-          };
+           // Response handlers.
+           xhr.responseType = "blob"; // force the HTTP response, response-type header to be blob
+           xhr.onload = function() {
+             callback(xhr.response);
+           };
 
-          xhr.send();
-        }
+           xhr.onerror = function() {
+             ++ncalls;
+             if (ncalls<=5) {
+                // exponential delay, maximum number of request attempts is 5
+                window.setTimeout(getBlob,
+                  Math.floor(1000*Math.pow(2, ncalls-1) + Math.random() * 100));
+              } else {
+                window.console.log('Could not read file: ' + fileResp.title + ' with id: ' + fileResp.id);
+                callback(null);
+              }
+           };
 
-        if (fileResp && !fileResp.error) {
-          getBlob();
-        } else {
-          callback(null);
-        }
-      });
-    };
+           xhr.send();
+         });
+       }
+
+       getBlob();
+     };
 
     /**
      * Write a file to GDrive
