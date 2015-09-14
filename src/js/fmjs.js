@@ -837,7 +837,7 @@ define(['gapi'], function() {
      * Get information about current GDrive user.
      *
      * @param {Function} callback whose argument is an object with the user
-     * info (properties: name, mail) or null if there was an error.
+     * info (properties: id, name, mail) or null if there was an error.
      */
     fmjs.GDriveFileManager.prototype.getUserInfo = function(callback) {
       var self = this;
@@ -851,7 +851,7 @@ define(['gapi'], function() {
 
           this.execGDriveRequest(request, function(resp) {
             if (!resp.error) {
-              var userDataObj = {name: resp.name, mail: resp.user.emailAddress};
+              var userDataObj = {id: resp.permissionId, name: resp.name, mail: resp.user.emailAddress};
               self.userInfo = userDataObj;
               callback(userDataObj);
             } else {
