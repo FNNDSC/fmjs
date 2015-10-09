@@ -44,6 +44,8 @@ define(['gapi'], function() {
 
     fmjs.AbstractFileManager.prototype.isFile = fmjs.abstractmethod;
 
+    fmjs.AbstractFileManager.prototype.getFileBlob = fmjs.abstractmethod;
+
     fmjs.AbstractFileManager.prototype.readFile = fmjs.abstractmethod;
 
     fmjs.AbstractFileManager.prototype.writeFile = fmjs.abstractmethod;
@@ -62,7 +64,6 @@ define(['gapi'], function() {
 
       // local filesystem object
       this.fs = null;
-
     };
 
     /**
@@ -92,7 +93,6 @@ define(['gapi'], function() {
           callback();
         }, function(err) {throw new Error('Could not grant filesystem. Error code: ' + err.code);});
       }
-
     };
 
     /**
@@ -139,7 +139,6 @@ define(['gapi'], function() {
       } else {
         this.requestFileSystem(createPath);
       }
-
     };
 
     /**
@@ -172,7 +171,6 @@ define(['gapi'], function() {
       } else {
         this.requestFileSystem(findFile);
       }
-
     };
 
     /**
@@ -183,36 +181,53 @@ define(['gapi'], function() {
      * the file data if the file is successfuly read or null otherwise.
      */
     fmjs.LocalFileManager.prototype.readFile = function(filePath, callback) {
+
+      this.getFileBlob(filePath, function(fileObj) {
+        var reader = new FileReader();
+
+        reader.onload = function() {
+          callback(this.result);
+        };
+
+        if (fileObj) {
+          reader.readAsArrayBuffer(fileObj);
+        } else {
+          callback(null);
+        }
+      });
+    };
+
+    /**
+     * Get a File object from the sandboxed FS
+     *
+     * @param {String} file's path.
+     * @param {Function} callback whose argument is a File object if the file is successfuly
+     * retrieved or null otherwise.
+     */
+    fmjs.LocalFileManager.prototype.getFileBlob = function(filePath, callback) {
       var self = this;
 
-      function readFile() {
+      function getFile() {
 
         function errorHandler(err) {
-          window.console.log('Could not read file. Error code: ' + err.code);
+          window.console.log('Could not retrieve file object. Error code: ' + err.code);
           callback(null);
         }
 
         self.fs.root.getFile(filePath, {create: false}, function(fileEntry) {
+
           // Get a File object representing the file,
           fileEntry.file(function(fileObj) {
-            var reader = new FileReader();
-
-            reader.onload = function() {
-              callback(this.result);
-            };
-
-            reader.readAsArrayBuffer(fileObj);
+            callback(fileObj);
           }, errorHandler);
         }, errorHandler);
-
       }
 
       if (this.fs) {
-        readFile();
+        getFile();
       } else {
-        this.requestFileSystem(readFile);
+        this.requestFileSystem(getFile);
       }
-
     };
 
     /**
@@ -971,24 +986,6 @@ define(['gapi'], function() {
         bufView[i] = str.charCodeAt(i);
       }
       return buf;
-    };
-
-    /**
-     * Make an Ajax request to get a Blob from a url.
-     *
-     * @function
-     * @param {String} a url
-     * @param {Function} callback whose argument is the Blob object
-     */
-     fmjs.urlToBlob = function(url, callback) {
-       var xhr = new XMLHttpRequest();
-
-       xhr.open("GET", url);
-       xhr.responseType = "blob";//force the HTTP response, response-type header to be blob
-       xhr.onload = function() {
-           callback(xhr.response);//xhr.response is now a blob object
-       };
-       xhr.send();
     };
 
     /**
