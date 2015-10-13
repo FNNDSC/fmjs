@@ -2,15 +2,16 @@ require.config({
   baseUrl: 'js/components',
   paths: {
     gapi: 'https://apis.google.com/js/api',
+    utiljs: 'utiljs/src/js/utiljs',
     fmjs: '../fmjs'
   }
 });
 
 
-require(['fmjs'], function(fmjs) {
+require(['fmjs'], function(fm) {
 
   var CLIENT_ID = '1050768372633-ap5v43nedv10gagid9l70a2vae8p9nah.apps.googleusercontent.com';
-  var driveFm = new fmjs.GDriveFileManager(CLIENT_ID);
+  var driveFm = new fm.GDriveFileManager(CLIENT_ID);
 
   /**
   * Request GDrive authorization, load the GDriveFileManager Api and log current user

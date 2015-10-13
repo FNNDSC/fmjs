@@ -13,7 +13,7 @@
  */
 
 // define a new module
-define(['gapi'], function() {
+define(['utiljs', 'gapi'], function(util) {
 
   /**
    * Provide a namespace for the file manager module
@@ -129,7 +129,7 @@ define(['gapi'], function() {
 
         }
 
-        var folders = fmjs.path2array(path);
+        var folders = util.path2array(path);
         createFolder(self.fs, folders); // fs.root is a DirectoryEntry
 
       }
@@ -508,7 +508,7 @@ define(['gapi'], function() {
       }
 
       if (this.driveAPILoaded) {
-        var folders = fmjs.path2array(path);
+        var folders = util.path2array(path);
         if (folders.length) {
           createFolder({'id': 'root'}, folders);
         } else if (callback) {
@@ -574,7 +574,7 @@ define(['gapi'], function() {
       }
 
       if (this.driveAPILoaded) {
-        var entries = fmjs.path2array(filePath);
+        var entries = util.path2array(filePath);
 
         if (entries.length) {
           findEntry({'id': 'root'}, entries);
@@ -735,7 +735,7 @@ define(['gapi'], function() {
             'parents': [{'id': baseDirResp.id}]
           };
 
-          var base64Data = btoa(fmjs.ab2str(fileData));
+          var base64Data = btoa(util.ab2str(fileData));
           var multipartRequestBody =
               delimiter +
               'Content-Type: application/json\r\n\r\n' +
@@ -952,57 +952,6 @@ define(['gapi'], function() {
 
     //};
 
-
-    /**
-     * Convert ArrayBuffer to String
-     *
-     * @function
-     * @param {Array} input ArrayBuffer.
-     * @return {string} the resulting string.
-     */
-     fmjs.ab2str = function(buf) {
-       var bytes = new Uint8Array(buf);
-       var str = String.fromCharCode(bytes[0]);
-
-       for (var i=1; i<bytes.byteLength; i++) {
-           str += String.fromCharCode(bytes[i]);
-       }
-       return str;
-     };
-
-    /**
-     * Convert String to ArrayBuffer
-     *
-     * @function
-     * @param {String} input string.
-     * @return {Array} the resulting array.
-     */
-    fmjs.str2ab = function(str) {
-      // 1 byte for each char
-      var buf = new ArrayBuffer(str.length);
-      var bufView = new Uint8Array(buf);
-
-      for (var i=0, strLen=str.length; i<strLen; i++) {
-        bufView[i] = str.charCodeAt(i);
-      }
-      return buf;
-    };
-
-    /**
-     * Split a file or folder path into an array
-     *
-     * @function
-     * @param {String} input path.
-     * @return {Array} the resulting array.
-     */
-    fmjs.path2array = function(path) {
-      var entries = path.split('/');
-      // Throw out './' or '/' and move on to prevent something like '/foo/.//bar'.
-      if (entries[0] === '.' || entries[0] === '') {
-        entries = entries.slice(1);
-      }
-      return entries;
-    };
 
   return fmjs;
 });
