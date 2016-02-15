@@ -1,6 +1,6 @@
 var dependencies = [
   // BOWER DEPS
-  '../../utiljs/src/js/utiljs',
+  '../../../utiljs/src/js/utiljs',
   // REMOTE DEPS
   // (NEEDS EXTENSION)
   'https://apis.google.com/js/api.js'
