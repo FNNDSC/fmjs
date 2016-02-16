@@ -1,11 +1,3 @@
-var dependencies = [
-  // BOWER DEPS
-  '../../../utiljs/src/js/utiljs',
-  // REMOTE DEPS
-  // (NEEDS EXTENSION)
-  'https://apis.google.com/js/api.js'
-];
-
 /**
  * This file manager module takes care of all file reading and saving operations
  * on diverse filesystems, including cloud uploading/downloading operations as
@@ -21,7 +13,11 @@ var dependencies = [
  */
 
 // define a new module
-define(dependencies, function(util) {
+define(
+  [
+  '../../../utiljs/src/js/utiljs',
+  'https://apis.google.com/js/api.js'
+  ], function(util) {
 
   /**
    * Provide a namespace for the file manager module
