@@ -50,10 +50,11 @@ module.exports = function(grunt) {
       }
     },
 
- connect: {
+    connect: {
       test: {
         options: {
-          port: 8000,
+          hostname: 'localhost',
+          port: 8001,
           base: [
             '.',
             'bower_components'
@@ -67,8 +68,7 @@ module.exports = function(grunt) {
         // comment when using the define function within the specs files
         //src: '<%= jshint.source.src %>',
         options: {
-          debug: true,
-          host: 'http://localhost:8000/',
+          host: 'http://<%= connect.test.options.hostname %>:<%= connect.test.options.port %>/',
           specs: '<%= jshint.test.src %>',
           template: require('grunt-template-jasmine-requirejs'),
           templateOptions: {
