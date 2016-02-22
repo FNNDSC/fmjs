@@ -1,10 +1,12 @@
 require.config({
-  baseUrl: '../',
+  baseUrl: '../bower_components',
+
+  // use packages to be able to use relative paths
   packages: [
-  {
-    name: 'fmjsPackage', // used for mapping...
-    location: 'src',     // relative to base url
-    main: 'js/fmjs'     // relative to package folder
-  }
+    {
+      name: 'fmjsPackage', // used for mapping...
+      location: './', // relative to base url
+      main: 'fmjs/src/js/fmjs'
+    }
   ]
 });
