@@ -60,10 +60,8 @@ module.exports = function(grunt) {
       }
     },
 
-    jasmine: { // run tests
+    jasmine: { // run tests, source files are first copied within componentsDir
       test: {
-        // comment when using the define function within the specs files
-        //src: '<%= jshint.source.src %>',
         options: {
           debug: true,
           host: 'http://<%= connect.test.options.hostname %>:<%= connect.test.options.port %>/',
