@@ -82,7 +82,7 @@ module.exports = function(grunt) {
       compile: {
         options: {
           baseUrl: '<%= componentsDir %>',
-          name: '<%= pkg.name %>Package',
+          name: '<%= pkg.name %>',
           mainConfigFile: 'demo/config.js',
           out: 'dist/<%= pkg.name %>.min.js'
         }

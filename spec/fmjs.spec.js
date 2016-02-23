@@ -3,7 +3,7 @@
  *
  */
 
-define(['fmjsPackage'], function(fmjs) {
+define(['fmjs'], function(fmjs) {
 
   describe('fmjs', function() {
     var driveFm;

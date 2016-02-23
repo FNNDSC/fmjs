@@ -1,6 +1,6 @@
 require(['./config'], function(){
-  
-  require(['fmjsPackage'], function(fm) {
+
+  require(['fmjs'], function(fm) {
 
     var CLIENT_ID = '1050768372633-ap5v43nedv10gagid9l70a2vae8p9nah.apps.googleusercontent.com';
     var driveFm = new fm.GDriveFileManager(CLIENT_ID);
